@@ -63,3 +63,11 @@ Para que no choque con el resto:
 - `server/Features/Inventory.luau`: mochila. Datos en atributos `Inv_<Rareza>` del jugador (fuente de verdad); la barra de Roblox es la vista: un Tool por material, apilado ("Raro x3"). API: `Inventory.Add(player, item, n)`, `Count`. Aún sin DataStore.
 - Fracture puede suscribirse a `require(script.Parent.Minerals).Exploded:Connect(function(position, radius) end)` para romper el escenario cercano a la explosión.
 - Cambiar el arte no toca esta lógica.
+
+## Mundo
+- `server/Features/World.luau` + `shared/Config/World.luau`: foso circular hacia el núcleo hecho con **Terrain generado por código** al arrancar (no se guarda en el repo). Meseta con foso, capas de roca con cuevas naturales, pozos de acceso, spawn y muros invisibles en el borde.
+- **Reinicio diario:** la semilla es la fecha UTC, así que cada servidor genera el mismo mundo ese día. `Seed = <número>` en el config fija un mundo para depurar.
+- **Minerales:** pool repartido por capas (más raros hacia el núcleo, pesos en `Layers`), en grupos de 1 a 4, repuestos cada 30 s hasta `MineralCount`. Salud por rareza en `Config/Minerals.luau`.
+- Las explosiones de minerales excavan el terreno (`CarveFactor`). Fracture puede añadir fragmentos al excavar, suscribiéndose a `Minerals.Exploded`.
+- Los jugadores aparecen cuando termina de generarse (`Output` imprime tiempo y % de aire por capa, útil para afinar las cuevas).
+- Se eliminaron el Baseplate y `TestRoom`; el suelo ahora es Terrain.
