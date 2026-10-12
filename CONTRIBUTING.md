@@ -47,6 +47,7 @@ Para que no choque con el resto:
 ## Armas y cámara
 - `Camera` (client/Features/Camera.luau): 1ª persona por defecto, rueda del ratón para pasar a 3ª.
 - `Weapon` (server + client + shared/Config/Weapon.luau): hitscan desde la boca del arma (Tool "Rifle" en la mano, placeholder de Parts), mira al centro, mantener clic para disparar. No conoce a Fracture.
+- Más armas: cualquier Tool con atributo `Weapon` dispara igual, con su propio `Damage` y, si tiene `ShotEffect`, un proyectil con los efectos de `ReplicatedStorage.WeaponEffects.<ShotEffect>`. `server/Features/CustomWeapons.luau` convierte modelos del mapa en esas armas según `Config.Weapon.CustomWeapons`. `Weapon.Hit` pasa el daño como 5º argumento.
 - Fracture se suscribe al impacto desde su archivo de servidor:
   ```lua
   local Weapon = require(script.Parent.Weapon)
@@ -56,7 +57,8 @@ Para que no choque con el resto:
   ```
 
 ## Minerales
-- **Mineral** = `Part` con tag `Mineral` y atributo `Rarity` (ver `Config/Minerals.luau`). Puede haber uno solo o varios juntos.
+- **Mineral** = `Part` o `Model` con tag `Mineral` y atributo `Rarity` (ver `Config/Minerals.luau`). Puede haber uno solo o varios juntos. Con atributo `MaxHealth` recibe `Weapon.Damage` por disparo y muestra barra de vida; sin él explota de un tiro.
+- Modelos de mineral por rareza: `assets/models/Minerals/Mineral_<Rareza>.model.json` (en `ReplicatedStorage.Assets.Minerals`), generados con `tools/generate-mineral-models.ps1`. Son plantillas sin tag; TestRoom los clona y les pone el tag.
 - `server/Features/Minerals.luau`: disparar a un mineral lo hace **explotar**: desaparece, suelta materiales nuevos (**Loot**, otro objeto distinto, tag `Loot`; flota 6 s, vive 5 min, tope de 300 en el mundo y se ancla al asentarse) y detona en cadena a los minerales dentro del radio. Números en `Config/MineralBehavior.luau`.
 - `client/Features/Minerals.luau`: efectos de la explosión (destello, onda, chispas, luz, temblor de cámara).
 - `server/Features/Capture.luau`: cada Loot lleva un ProximityPrompt (`E`); al activarlo pasa al inventario y desaparece del mundo.

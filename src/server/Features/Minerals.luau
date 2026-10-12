@@ -1,7 +1,7 @@
 -- Disparar a un mineral ("Mineral") lo hace explotar: desaparece, suelta materiales nuevos ("Loot")
 -- y detona en cadena a los minerales cercanos. Capture recoge el Loot.
 -- Un mineral puede ser una Part o un Model (ej. del Marketplace). Si tiene atributo MaxHealth, cada disparo le
--- quita Weapon.Damage, muestra una barra de vida y explota al llegar a 0; sin MaxHealth explota de un tiro.
+-- quita el daño del arma (Damage del Tool o Weapon.Damage), muestra una barra de vida y explota al llegar a 0; sin MaxHealth explota de un tiro.
 -- Fracture puede suscribirse a Minerals.Exploded(position, radius) para romper el escenario cercano.
 local CollectionService = game:GetService("CollectionService")
 local Debris = game:GetService("Debris")
@@ -192,9 +192,9 @@ return {
 		lootFolder.Name = "Loot"
 		lootFolder.Parent = workspace
 
-		Weapon.Hit:Connect(function(_player, _position, _normal, instance)
+		Weapon.Hit:Connect(function(_player, _position, _normal, instance, amount)
 			local node = findMineral(instance)
-			if node then damage(node, WeaponConfig.Damage) end
+			if node then damage(node, amount or WeaponConfig.Damage) end
 		end)
 
 		-- Objetos puestos a mano en Workspace que cuentan como mineral (ver Config.MineralBehavior.WorkspaceMinerals).

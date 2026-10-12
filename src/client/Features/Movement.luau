@@ -67,7 +67,8 @@ local function collectJoints(character: Model, root: BasePart): { PoseJoint }
 		if kind then
 			local rest = restPose[target]
 			if not rest then
-				rest = (target :: any)[property]
+				-- AimPose guarda el reposo real en RestCFrame (el brazo puede estar inclinado apuntando)
+				rest = target:GetAttribute("RestCFrame") or (target :: any)[property]
 				restPose[target] = rest
 			end
 			table.insert(joints, { target = target, property = property, rest = rest, kind = kind })

@@ -9,6 +9,8 @@ local UserInputService = game:GetService("UserInputService")
 
 local Config = require(ReplicatedStorage.Shared.Config.Weapon)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local EffectCopy = require(ReplicatedStorage.Shared.EffectCopy)
+local TweenService = game:GetService("TweenService")
 
 local player = Players.LocalPlayer
 local held, firing = false, false
@@ -39,6 +41,67 @@ local function isFirstPerson(): boolean
 	return (cam.CFrame.Position - cam.Focus.Position).Magnitude < 1
 end
 
+-- arma equipada: el Rifle o cualquier Tool con atributo Weapon (ver server/Features/CustomWeapons)
+local function hasWeapon(character: Model): boolean
+	for _, child in character:GetChildren() do
+		if child:IsA("Tool") and (child.Name == Config.ToolName or child:GetAttribute("Weapon")) then
+			return true
+		end
+	end
+	return false
+end
+
+-- Disparo con efecto (ShotEffect): un proyectil invisible con los efectos del aura copiados viaja de a hasta b,
+-- deja su estela y al llegar suelta una ráfaga y se apaga.
+local function shotEffect(a: Vector3, b: Vector3, effectName: string): boolean
+	local folder = ReplicatedStorage:FindFirstChild("WeaponEffects")
+	local source = folder and folder:FindFirstChild(effectName)
+	if not source or (b - a).Magnitude < 0.1 then return false end
+
+	local bolt = Instance.new("Part")
+	bolt.Size = Vector3.one * 0.4
+	bolt.Transparency = 1
+	bolt.Anchored, bolt.CanCollide, bolt.CanQuery, bolt.CanTouch = true, false, false, false
+	bolt.CFrame = CFrame.lookAt(a, b)
+	bolt.Parent = workspace
+	if EffectCopy.copy(source, bolt, Config.ShotEffectScale) == 0 then
+		bolt:Destroy()
+		return false
+	end
+
+	-- rastro de la bala: estela brillante que queda en el aire detrás del proyectil y se desvanece
+	local top, bottom = Instance.new("Attachment"), Instance.new("Attachment")
+	top.Position = Vector3.new(0, Config.ShotTrailWidth / 2, 0)
+	bottom.Position = Vector3.new(0, -Config.ShotTrailWidth / 2, 0)
+	top.Parent, bottom.Parent = bolt, bolt
+	local trail = Instance.new("Trail")
+	trail.Attachment0, trail.Attachment1 = top, bottom
+	trail.FaceCamera = true
+	trail.Lifetime = Config.ShotTrailTime
+	trail.LightEmission = 1
+	trail.LightInfluence = 0
+	trail.Color = ColorSequence.new(Color3.new(1, 1, 1), source:GetAttribute("TrailColor") or Config.ShotTrailColor)
+	trail.Transparency = NumberSequence.new(0, 1)
+	trail.WidthScale = NumberSequence.new(1, 0.3)
+	trail.Name = "BulletTrail"
+	trail.Parent = bolt
+
+	local travel = (b - a).Magnitude / Config.ShotSpeed
+	TweenService:Create(bolt, TweenInfo.new(travel, Enum.EasingStyle.Linear), { CFrame = CFrame.lookAt(b, b + (b - a).Unit) }):Play()
+	task.delay(travel, function()
+		for _, effect in bolt:GetDescendants() do
+			if effect:IsA("ParticleEmitter") then
+				effect:Emit(12) -- ráfaga en el impacto
+				effect.Enabled = false
+			elseif (effect:IsA("Beam") or effect:IsA("Trail") or effect:IsA("Light")) and effect.Name ~= "BulletTrail" then
+				effect.Enabled = false
+			end
+		end
+		Debris:AddItem(bolt, 2) -- deja terminar las partículas ya emitidas
+	end)
+	return true
+end
+
 -- la mira solo se ve con el arma o con un Tool que tenga el atributo "Crosshair" (ej. el gancho) en la mano
 local function wantsCrosshair(character: Model): boolean
 	for _, child in character:GetChildren() do
@@ -53,8 +116,15 @@ return {
 	Start = function()
 		local fire, tracer = Remotes.get("Weapon_Fire"), Remotes.get("Weapon_Tracer")
 		local crosshair, crosshairCenter = buildCrosshair()
+		local lockMode = true -- ver más abajo: Ctrl lo alterna; al sacar un arma vuelve a bloquearse solo
 		local function watchCrosshair(character: Model)
-			local function update() crosshair.Enabled = wantsCrosshair(character) end
+			local function update()
+				local armed = wantsCrosshair(character)
+				if armed and not crosshair.Enabled then
+					lockMode = true -- al equipar un arma la vista se bloquea automáticamente
+				end
+				crosshair.Enabled = armed
+			end
 			character.ChildAdded:Connect(update)
 			character.ChildRemoved:Connect(update)
 			update()
@@ -67,7 +137,6 @@ return {
 		--    personaje mira hacia donde apunta la cámara.
 		--  · Libre: mouse libre y la mira sigue al cursor.
 		-- Sin arma/gancho en 3ª persona: mouse libre y cursor normal.
-		local lockMode = true
 		UserInputService.InputBegan:Connect(function(input, processed)
 			if not processed and (input.KeyCode == Enum.KeyCode.LeftControl or input.KeyCode == Enum.KeyCode.RightControl) then
 				lockMode = not lockMode
@@ -136,7 +205,7 @@ return {
 
 		local function shoot()
 			local char = player.Character
-			if not (char and char:FindFirstChild(Config.ToolName)) then return end
+			if not (char and hasWeapon(char)) then return end
 			local cam = workspace.CurrentCamera
 			local mouse = aimPosition()
 			local ray = cam:ViewportPointToRay(mouse.X, mouse.Y)
@@ -163,7 +232,8 @@ return {
 		end)
 
 		-- trazador placeholder; reemplazar por efecto real cuando haya arte
-		tracer.OnClientEvent:Connect(function(a: Vector3, b: Vector3)
+		tracer.OnClientEvent:Connect(function(a: Vector3, b: Vector3, effectName: string?)
+			if effectName and shotEffect(a, b, effectName) then return end
 			local p = Instance.new("Part")
 			p.Anchored, p.CanCollide, p.CanQuery, p.CanTouch = true, false, false, false
 			p.Material, p.Color = Enum.Material.Neon, Color3.fromRGB(255, 220, 120)

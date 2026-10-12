@@ -1,5 +1,6 @@
 -- Hitscan desde la boca del arma (Tool en la mano). El cliente solo manda hacia dónde apunta;
--- el origen lo toma el servidor del Muzzle. Hit: Weapon.Hit:Connect(function(player, position, normal, instance) end)
+-- el origen lo toma el servidor del Muzzle. Hit: Weapon.Hit:Connect(function(player, position, normal, instance, damage) end)
+-- Arma = el Rifle o cualquier Tool con atributo Weapon (ver CustomWeapons); su atributo Damage manda sobre Config.Damage.
 -- Otras features (Fracture, etc.) se suscriben a Hit; Weapon no sabe qué es "Fracturable".
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -8,6 +9,13 @@ local Config = require(ReplicatedStorage.Shared.Config.Weapon)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 
 local hitEvent = Instance.new("BindableEvent")
+
+local function equippedWeapon(char: Model): Tool?
+	for _, child in char:GetChildren() do
+		if child:IsA("Tool") and (child.Name == Config.ToolName or child:GetAttribute("Weapon")) then return child end
+	end
+	return nil
+end
 local lastFire: { [Player]: number } = {}
 
 -- Arma placeholder hecha de Parts; reemplazar por modelo real conservando Handle y Handle.Muzzle.
@@ -71,7 +79,7 @@ return {
 			if typeof(aim) ~= "Vector3" then return end
 			local char = player.Character
 			local hum = char and char:FindFirstChildOfClass("Humanoid")
-			local tool = char and char:FindFirstChild(Config.ToolName)
+			local tool = char and equippedWeapon(char)
 			local muzzle = tool and tool:FindFirstChild("Muzzle", true)
 			if not (hum and hum.Health > 0 and muzzle) then return end
 
@@ -91,8 +99,11 @@ return {
 			local result = workspace:Raycast(origin, dir, params)
 
 			if Config.Debug then print(`[Weapon] impacto en {result and result.Instance:GetFullName() or "nada"}`) end
-			tracer:FireAllClients(origin, result and result.Position or origin + dir)
-			if result then hitEvent:Fire(player, result.Position, result.Normal, result.Instance) end
+			-- ShotEffect: nombre del efecto en ReplicatedStorage.WeaponEffects que el cliente dibuja como proyectil
+			tracer:FireAllClients(origin, result and result.Position or origin + dir, tool:GetAttribute("ShotEffect"))
+			if result then
+				hitEvent:Fire(player, result.Position, result.Normal, result.Instance, tool:GetAttribute("Damage") or Config.Damage)
+			end
 		end)
 
 		Players.PlayerRemoving:Connect(function(p) lastFire[p] = nil end)
