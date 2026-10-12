@@ -48,6 +48,9 @@
             512
           ]
         }
+      },
+      "GrappleTest": {
+        "$path": "src/workspace/GrappleTest.model.json"
       }
     },
     "Lighting": {
