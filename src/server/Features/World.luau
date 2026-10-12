@@ -1,6 +1,6 @@
--- Mundo: gran foso hacia el núcleo, generado por código con Terrain al arrancar el servidor.
---  · Meseta plana con un foso enorme de paredes empinadas; bajo tierra, capas de roca con cuevas naturales (ruido 3D).
---  · Accesos repartidos: pozos en la meseta, bocas de cueva en las paredes y pozos en el fondo del foso.
+-- Mundo: meseta enorme con un pozo estrecho y vertical que baja directo al núcleo, hecho con Terrain por código.
+--  · El pozo es solo un vistazo al núcleo (brillo al fondo); bajo la meseta hay capas de roca con cuevas naturales.
+--  · Entradas repartidas por la meseta: rampas que se caminan hacia abajo y pozos verticales.
 --  · Iluminación del subsuelo con cristales luminosos; los minerales también brillan.
 --  · Pool de minerales por capas (más raros hacia el núcleo), repuestos con el tiempo, más unos cuantos a la vista.
 --  · Las explosiones de minerales excavan el terreno (Minerals.Exploded).
@@ -18,6 +18,7 @@ local RES = 4 -- tamaño de voxel de Roblox
 local CHUNK = 128 -- studs por lado de cada bloque que se escribe de una vez
 local TOP = 4 -- filas de voxel sobre y = 0 (para suavizar la superficie)
 local CAVE_SHARP = 18 -- qué tan nítido es el borde de las cuevas (voxel ~ 0.056 de ruido)
+local PIT_NOISE = 1 / 28 -- escala del ruido que desordena las paredes del pozo
 
 local seed = Config.Seed or (tonumber(os.date("!%Y%m%d")) :: number)
 local seedRng = Random.new(seed)
@@ -26,14 +27,7 @@ local seedRng = Random.new(seed)
 local function offsets()
 	return { seedRng:NextNumber(0, 1000) + 0.37, seedRng:NextNumber(0, 1000) + 0.61, seedRng:NextNumber(0, 1000) + 0.19 }
 end
-local o1, o2, o3 = offsets(), offsets(), offsets()
-
-local function surfaceHeight(x: number, z: number): number
-	local dx, dz = x - Config.PitCenter.X, z - Config.PitCenter.Y
-	local t = math.sqrt(dx * dx + dz * dz) / Config.PitRadius
-	if t >= 1 then return 0 end
-	return -Config.PitDepth * (1 - t * t)
-end
+local o1, o2, o3, o4 = offsets(), offsets(), offsets(), offsets()
 
 local function materialAt(depth: number): Enum.Material
 	for _, m in Config.Materials do
@@ -60,36 +54,50 @@ for j = 1, NY do
 	rowThr[j] = Config.CavernThreshold[1] + (Config.CavernThreshold[2] - Config.CavernThreshold[1]) * t
 end
 
+local CORE_FLOOR = -Config.Depth + Config.CoreHeight -- bajo esta altura el pozo termina en roca sólida
+local PIT_NEAR2 = (Config.PitRadius + Config.PitRagged + 2 * RES) ^ 2
+
 -- stats[capa] = { aire, total } para ajustar las cuevas viendo el Output
 local function generateChunk(x0: number, z0: number, stats)
 	local n = CHUNK / RES
 	local f = Config.NoiseScale
 	local mats, occs = table.create(n), table.create(n)
-	local z1, z2, z3, zs = table.create(n), table.create(n), table.create(n), table.create(n)
+	local z1, z2, z3, dz2 = table.create(n), table.create(n), table.create(n), table.create(n)
+	local zs = table.create(n)
 	for k = 1, n do
 		local z = z0 + (k - 0.5) * RES
 		zs[k], z1[k], z2[k], z3[k] = z, z * f + o1[3], z * f + o2[3], z * f + o3[3]
+		dz2[k] = (z - Config.PitCenter.Y) ^ 2
 	end
 	for i = 1, n do
 		local mi, oi = table.create(NY), table.create(NY)
 		mats[i], occs[i] = mi, oi
 		local x = x0 + (i - 0.5) * RES
 		local x1, x2, x3 = x * f + o1[1], x * f + o2[1], x * f + o3[1]
+		local dx2 = (x - Config.PitCenter.X) ^ 2
 		for j = 1, NY do
 			local y = -Config.Depth + (j - 0.5) * RES
 			local y1, y2, y3 = y * f + o1[2], y * f + o2[2], y * f + o3[2]
 			local mj, oj = table.create(n), table.create(n)
 			mi[j], oi[j] = mj, oj
 			local width, thr, layer = rowWidth[j], rowThr[j], rowLayer[j]
+			local below = -y -- profundidad bajo la superficie plana y = 0
+			local surface = math.clamp(below / RES + 0.5, 0, 1)
 			for k = 1, n do
-				local h = surfaceHeight(x, zs[k])
-				local below = h - y
-				local occ = math.clamp(below / RES + 0.5, 0, 1)
-				if occ > 0 and below > Config.CaveMinDepth then
-					-- negativo = aire (cueva), positivo = roca
-					local tunnel = math.max(math.abs(math.noise(x1, y1, z1[k])), math.abs(math.noise(x2, y2, z2[k]))) - width
-					local cavern = thr - math.noise(x3, y3, z3[k])
-					occ = math.min(occ, math.clamp(math.min(tunnel, cavern) * CAVE_SHARP + 0.5, 0, 1))
+				local occ = surface
+				if occ > 0 then
+					local r2 = dx2 + dz2[k]
+					if r2 < PIT_NEAR2 and y > CORE_FLOOR then
+						-- pozo vertical con paredes irregulares: aire dentro del radio
+						local edge = Config.PitRadius + Config.PitRagged * math.noise(x * PIT_NOISE + o4[1], y * PIT_NOISE * 0.5 + o4[2], zs[k] * PIT_NOISE + o4[3])
+						occ = math.min(occ, math.clamp((math.sqrt(r2) - edge) / RES + 0.5, 0, 1))
+					end
+					if occ > 0 and below > Config.CaveMinDepth then
+						-- negativo = aire (cueva), positivo = roca
+						local tunnel = math.max(math.abs(math.noise(x1, y1, z1[k])), math.abs(math.noise(x2, y2, z2[k]))) - width
+						local cavern = thr - math.noise(x3, y3, z3[k])
+						occ = math.min(occ, math.clamp(math.min(tunnel, cavern) * CAVE_SHARP + 0.5, 0, 1))
+					end
 				end
 				if below > 0 then
 					local s = stats[layer]
@@ -99,7 +107,7 @@ local function generateChunk(x0: number, z0: number, stats)
 				if occ <= 0.01 then
 					mj[k], oj[k] = Enum.Material.Air, 0
 				else
-					mj[k] = if h == 0 and below < 5 then Enum.Material.Ground else rowMat[j]
+					mj[k] = if below < 5 then Enum.Material.Ground else rowMat[j]
 					oj[k] = occ
 				end
 			end
@@ -120,40 +128,59 @@ local function tunnel(from: Vector3, to: Vector3, radius: number, chamber: numbe
 	Terrain:FillBall(to, chamber, Enum.Material.Air)
 end
 
+-- Entradas repartidas: rampas inclinadas (se caminan) y pozos verticales, lejos del gran pozo y del spawn.
 local function carveEntrances()
 	local rng = Random.new(seed + 7)
 	local pit = Config.PitCenter
 	local spawn2d = Vector2.new(Config.SpawnPosition.X, Config.SpawnPosition.Z)
-	local lim = Config.HalfSize - 40
+	local lim = Config.HalfSize - 60
 
-	-- pozos en la meseta, repartidos alrededor del foso
-	local placed = 0
-	for _ = 1, 400 do
-		if placed >= Config.PlateauShafts then break end
-		local p = Vector2.new(rng:NextNumber(-lim, lim), rng:NextNumber(-lim, lim))
-		if (p - pit).Magnitude > Config.PitRadius + 15 and (p - spawn2d).Magnitude > 30 then
-			tunnel(Vector3.new(p.X, 2, p.Y), Vector3.new(p.X, -rng:NextNumber(50, 110), p.Y), 5, 13)
-			placed += 1
+	local function randomSpot(): Vector2?
+		for _ = 1, 100 do
+			local p = Vector2.new(rng:NextNumber(-lim, lim), rng:NextNumber(-lim, lim))
+			if (p - pit).Magnitude > Config.PitRadius + 40 and (p - spawn2d).Magnitude > 40 then return p end
+		end
+		return nil
+	end
+
+	for _ = 1, Config.PlateauRamps do
+		local p = randomSpot()
+		if p then
+			local a = rng:NextNumber(0, math.pi * 2)
+			local slope = math.rad(rng:NextNumber(22, 32))
+			local len = rng:NextNumber(70, 110)
+			local from = Vector3.new(p.X, 2, p.Y)
+			local to = from + Vector3.new(math.cos(a) * math.cos(slope), -math.sin(slope), math.sin(a) * math.cos(slope)) * len
+			tunnel(from, to, 6, 13)
 		end
 	end
-
-	-- bocas de cueva horizontales en las paredes del foso, a distintas alturas
-	for _ = 1, Config.WallCaves do
-		local a = rng:NextNumber(0, math.pi * 2)
-		local y = -rng:NextNumber(20, Config.PitDepth - 20)
-		local dir = Vector3.new(math.cos(a), 0, math.sin(a))
-		local r = math.sqrt(1 + y / Config.PitDepth) * Config.PitRadius -- radio donde la pared está a altura y
-		local wall = Vector3.new(pit.X + dir.X * r, y, pit.Y + dir.Z * r)
-		tunnel(wall - dir * 8, wall + dir * 46, 6, 12)
+	for _ = 1, Config.PlateauShafts do
+		local p = randomSpot()
+		if p then tunnel(Vector3.new(p.X, 2, p.Y), Vector3.new(p.X, -rng:NextNumber(50, 110), p.Y), 5, 13) end
 	end
+end
 
-	-- pozos en el fondo del foso hacia las capas profundas
-	for i = 1, Config.PitShafts do
-		local a = (i / Config.PitShafts) * math.pi * 2
-		local x, z = pit.X + math.cos(a) * Config.PitRadius * 0.4, pit.Y + math.sin(a) * Config.PitRadius * 0.4
-		local top = surfaceHeight(x, z) + 2
-		tunnel(Vector3.new(x, top, z), Vector3.new(x, top - 60, z), 6, 14)
-	end
+-- El núcleo: una esfera incandescente al fondo del pozo, visible desde la superficie.
+local function buildCore()
+	local core = Instance.new("Part")
+	core.Name, core.Shape, core.Anchored = "Core", Enum.PartType.Ball, true
+	core.Size = Vector3.one * Config.CoreRadius * 2
+	core.Position = Vector3.new(Config.PitCenter.X, CORE_FLOOR + Config.CoreRadius * 0.6, Config.PitCenter.Y)
+	core.Material, core.Color = Enum.Material.Neon, Config.CoreColor
+	core:SetAttribute("Core", true) -- marcador para la muerte por caída (pendiente)
+	core.Parent = workspace
+
+	local glow = Instance.new("PointLight")
+	glow.Color, glow.Range, glow.Brightness, glow.Shadows = Config.CoreColor, 60, 6, false
+	glow.Parent = core
+
+	local embers = Instance.new("ParticleEmitter")
+	embers.Color = ColorSequence.new(Color3.fromRGB(255, 220, 140), Config.CoreColor)
+	embers.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 2), NumberSequenceKeypoint.new(1, 0) })
+	embers.Lifetime, embers.Speed = NumberRange.new(4, 7), NumberRange.new(8, 22)
+	embers.EmissionDirection, embers.SpreadAngle = Enum.NormalId.Top, Vector2.new(25, 25)
+	embers.LightEmission, embers.Rate = 1, 30
+	embers.Parent = core
 end
 
 local function buildBorders()
@@ -174,7 +201,8 @@ end
 local function buildSpawn()
 	local spawn = Instance.new("SpawnLocation") -- invisible: solo marca dónde aparecen los jugadores
 	spawn.Anchored, spawn.Neutral, spawn.Duration = true, true, 0
-	spawn.Size, spawn.Position, spawn.Transparency, spawn.CanCollide = Vector3.new(14, 1, 14), Config.SpawnPosition, 1, false
+	spawn.Size, spawn.Position, spawn.Transparency = Vector3.new(14, 1, 14), Config.SpawnPosition, 1
+	spawn.CanCollide, spawn.CanQuery, spawn.CanTouch = false, false, false -- no estorba disparos ni gancho
 	spawn.Parent = workspace
 end
 
@@ -271,7 +299,7 @@ local function fillMinerals(rng: Random, limit: number)
 	end
 end
 
--- Minerales a la vista (meseta y paredes del foso): rayo desde arriba en puntos al azar.
+-- Minerales a la vista sobre la meseta: rayo desde arriba en puntos al azar (en todo el mundo o cerca de `center`).
 local function spawnSurfaceMinerals(rng: Random, count: number, center: Vector2?, radius: number)
 	local lim = Config.HalfSize - 20
 	local placed = 0
@@ -279,13 +307,13 @@ local function spawnSurfaceMinerals(rng: Random, count: number, center: Vector2?
 		if placed >= count then break end
 		local x, z
 		if center then
-			local a, r = rng:NextNumber(0, math.pi * 2), math.sqrt(rng:NextNumber()) * radius
+			local a, r = rng:NextNumber(0, math.pi * 2), math.sqrt(rng:NextNumber(0, 1)) * radius
 			x, z = center.X + math.cos(a) * r, center.Y + math.sin(a) * r
 		else
 			x, z = rng:NextNumber(-lim, lim), rng:NextNumber(-lim, lim)
 		end
 		local hit = workspace:Raycast(Vector3.new(x, 60, z), Vector3.new(0, -400, 0), floorParams)
-		if hit and hit.Normal.Y > 0.3 then -- no en paredes casi verticales
+		if hit and hit.Position.Y > -5 and hit.Normal.Y > 0.5 then -- solo la meseta, no el fondo del pozo
 			newMineral(pickWeighted(rng, Config.Layers[1].Rarity), hit.Position + hit.Normal * 0.9)
 			placed += 1
 		end
@@ -318,6 +346,7 @@ return {
 			end
 		end
 		carveEntrances()
+		buildCore()
 		buildBorders()
 		buildSpawn()
 

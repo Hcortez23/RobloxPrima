@@ -80,6 +80,7 @@ return {
 			if toAim.Magnitude < 0.5 then return end
 
 			local now = os.clock()
+			if Config.Debug then print(`[Weapon] {player.Name} dispara`) end
 			if now - (lastFire[player] or 0) < Config.Cooldown * 0.9 then return end
 			lastFire[player] = now
 
@@ -89,6 +90,7 @@ return {
 			local dir = toAim.Unit * Config.Range
 			local result = workspace:Raycast(origin, dir, params)
 
+			if Config.Debug then print(`[Weapon] impacto en {result and result.Instance:GetFullName() or "nada"}`) end
 			tracer:FireAllClients(origin, result and result.Position or origin + dir)
 			if result then hitEvent:Fire(player, result.Position, result.Normal, result.Instance) end
 		end)

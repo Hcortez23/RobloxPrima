@@ -65,12 +65,13 @@ Para que no choque con el resto:
 - Cambiar el arte no toca esta lógica.
 
 ## Mundo
-- `server/Features/World.luau` + `shared/Config/World.luau`: **gran foso** (radio 170, 200 de profundidad, paredes empinadas) en un Terrain de 768×768 y 320 hacia el núcleo, generado por código al arrancar (no se guarda en el repo). Capas de roca con cuevas naturales.
-- **Accesos:** pozos en la meseta, bocas de cueva horizontales en las paredes del foso y pozos en el fondo.
-- **Iluminación:** cristales luminosos en las cuevas (un color por capa) y los minerales también brillan; `Lighting.Ambient` está subido un poco en `default.project.json`.
+- `server/Features/World.luau` + `shared/Config/World.luau`: meseta de 768×768 con **un pozo estrecho y vertical** (radio 42) de 320 de profundidad hasta el núcleo, hecho con Terrain por código (no se guarda en el repo). Nadie debería bajar por el pozo: es un vistazo al **núcleo** (esfera incandescente `Core` con luz y brasas). Caerse por ahí matará más adelante (pendiente; `Core` tiene el atributo `Core`).
+- **Capas de roca** bajo la meseta con cuevas naturales. **Entradas** repartidas: 10 rampas inclinadas que se caminan y 8 pozos verticales.
+- **Iluminación:** cristales luminosos en las cuevas (un color por capa); los minerales también brillan.
 - **Reinicio diario:** la semilla es la fecha UTC, así que cada servidor genera el mismo mundo ese día. `Seed = <número>` en el config fija un mundo para depurar.
-- **Minerales:** pool repartido por capas (más raros hacia el núcleo), en grupos de 1 a 4, repuestos cada 30 s hasta `MineralCount`; además unos cuantos a la vista en la meseta, las paredes y cerca del spawn. Salud por rareza en `Config/Minerals.luau`.
+- **Minerales:** pool por capas (más raros hacia el núcleo), en grupos de 1 a 4, repuestos cada 30 s hasta `MineralCount`; además unos cuantos a la vista en la meseta y cerca del spawn. Salud por rareza en `Config/Minerals.luau`.
 - Las explosiones de minerales excavan el terreno (`CarveFactor`). Fracture puede añadir fragmentos al excavar, suscribiéndose a `Minerals.Exploded`.
 - Los jugadores aparecen cuando termina de generarse (el Output imprime tiempo y % de aire por capa, útil para afinar las cuevas).
-- Sin plataformas: no hay Baseplate, `TestRoom` ni `GrappleTest`; el suelo es Terrain y el gancho se engancha al terreno.
-- El rifle ya no sale de StarterPack: `Weapon` (servidor) lo entrega al aparecer cada personaje, y `Movement` evita duplicar el gancho.
+- `server/Features/Ambience.luau`: ambiente **postapocalíptico sci-fi** (atardecer polvoriento, bruma ocre, colores apagados, bloom para el neón, nubes, colores de terreno). Se afina todo ahí.
+- Sin plataformas: no hay Baseplate, `TestRoom` ni `GrappleTest`; el gancho se engancha al terreno.
+- El rifle ya no sale de StarterPack: `Weapon` (servidor) lo entrega al aparecer cada personaje, y `Movement` evita duplicar el gancho. `Config/Weapon.Debug = true` imprime los disparos en el Output.
