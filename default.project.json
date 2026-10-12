@@ -29,17 +29,14 @@
     "Workspace": {
       "$properties": {
         "FilteringEnabled": true
-      },
-      "GrappleTest": {
-        "$path": "src/workspace/GrappleTest.model.json"
       }
     },
     "Lighting": {
       "$properties": {
         "Ambient": [
-          0,
-          0,
-          0
+          0.12,
+          0.13,
+          0.17
         ],
         "Brightness": 2,
         "GlobalShadows": true,

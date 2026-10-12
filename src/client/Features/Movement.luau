@@ -647,11 +647,17 @@ local function setupGrapple(character: Model)
 		end
 	end)
 	tool.Unequipped:Connect(release)
-	tool.Parent = player:WaitForChild("Backpack")
+	local backpack = player:WaitForChild("Backpack")
+	for _, old in backpack:GetChildren() do -- nunca dos ganchos en la barra
+		if old.Name == tool.Name then old:Destroy() end
+	end
+	tool.Parent = backpack
 
 	humanoid.Died:Once(release)
 end
 local function setupCharacter(character: Model)
+	if character:GetAttribute("MovementReady") then return end -- Start y CharacterAdded pueden llegar al mismo personaje
+	character:SetAttribute("MovementReady", true)
 	task.spawn(setupDoubleJump, character)
 	task.spawn(setupSprint, character)
 	task.spawn(setupGrapple, character)

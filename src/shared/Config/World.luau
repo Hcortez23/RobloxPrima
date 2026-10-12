@@ -1,16 +1,16 @@
--- Parámetros del mundo (foso circular hacia el núcleo, hecho con Terrain). Todo en studs.
+-- Parámetros del mundo (gran foso hacia el núcleo, hecho con Terrain). Todo en studs.
 -- Seed = nil usa la fecha UTC (el mundo "se reinicia" cada día); pon un número fijo para depurar el mismo mundo.
 return {
 	Seed = nil,
 
-	HalfSize = 256, -- el mundo ocupa [-HalfSize, HalfSize) en X y Z (múltiplo de 128)
-	Depth = 208, -- hacia el núcleo, bajo y = 0
+	HalfSize = 384, -- el mundo ocupa [-HalfSize, HalfSize) en X y Z (múltiplo de 128)
+	Depth = 320, -- hacia el núcleo, bajo y = 0
 
-	PitCenter = Vector2.new(0, 150), -- (x, z) del centro del foso
-	PitRadius = 90,
-	PitDepth = 60, -- profundidad del foso en su centro
+	PitCenter = Vector2.new(0, 0), -- (x, z) del centro del gran foso
+	PitRadius = 170,
+	PitDepth = 200, -- profundidad del foso en su centro (paredes muy empinadas)
 
-	SpawnPosition = Vector3.new(0, 0.8, -110), -- en la meseta, lejos del foso
+	SpawnPosition = Vector3.new(0, 0.8, -215), -- en la meseta, cerca del borde del foso (invisible)
 
 	-- Cuevas naturales: túneles (dos ruidos que se cruzan) + cavernas (un ruido). Lo "abierto" se reduce con la profundidad.
 	CaveMinDepth = 8, -- bajo la superficie local no hay cuevas, para que la meseta no se agujeree sola
@@ -18,26 +18,34 @@ return {
 	CavernThreshold = { 0.30, 0.50 }, -- más bajo = más cavernas
 	NoiseScale = 1 / 35, -- más bajo = cuevas más grandes y suaves
 
-	-- Accesos garantizados: pozos verticales con una cámara al fondo.
-	PlateauEntrances = 8, -- en la meseta, a poca profundidad (fáciles)
-	PitShafts = 4, -- en el fondo del foso, más profundos
+	-- Accesos garantizados repartidos alrededor del foso, todos con una cámara al fondo.
+	PlateauShafts = 16, -- pozos verticales en la meseta, poco profundos (fáciles)
+	WallCaves = 28, -- bocas de cueva horizontales en las paredes del foso, a distintas alturas
+	PitShafts = 6, -- pozos en el fondo del foso, hacia las capas profundas
 
 	-- Capas hacia el núcleo (profundidad bajo y = 0). Rareza = pesos al elegir qué mineral aparece ahí.
 	Layers = {
-		{ MaxDepth = 70, SpawnWeight = 50, Rarity = { Comun = 80, Raro = 18, Epico = 2 } },
-		{ MaxDepth = 140, SpawnWeight = 35, Rarity = { Comun = 40, Raro = 40, Epico = 18, Legendario = 2 } },
-		{ MaxDepth = 208, SpawnWeight = 15, Rarity = { Raro = 30, Epico = 50, Legendario = 20 } },
+		{ MaxDepth = 110, SpawnWeight = 50, Rarity = { Comun = 80, Raro = 18, Epico = 2 } },
+		{ MaxDepth = 220, SpawnWeight = 35, Rarity = { Comun = 40, Raro = 40, Epico = 18, Legendario = 2 } },
+		{ MaxDepth = 320, SpawnWeight = 15, Rarity = { Raro = 30, Epico = 50, Legendario = 20 } },
 	},
 	-- Material del terreno según la profundidad.
 	Materials = {
-		{ 70, Enum.Material.Rock },
-		{ 140, Enum.Material.Slate },
-		{ 190, Enum.Material.Basalt },
+		{ 80, Enum.Material.Rock },
+		{ 170, Enum.Material.Slate },
+		{ 270, Enum.Material.Basalt },
 		{ math.huge, Enum.Material.CrackedLava },
 	},
 
+	-- Iluminación del subsuelo: cristales luminosos sobre el suelo de las cuevas (un color por capa).
+	LightCount = 260,
+	LightColors = { Color3.fromRGB(90, 220, 255), Color3.fromRGB(170, 110, 255), Color3.fromRGB(255, 150, 60) },
+	LightRange = 30,
+
 	-- Pool de minerales: se mantienen MineralCount en el mundo y se reponen por lotes.
-	MineralCount = 150,
+	MineralCount = 180,
+	SurfaceMinerals = 25, -- repartidos por la meseta y las paredes del foso (a la vista, para probar rápido)
+	NearSpawnMinerals = 8, -- además, unos cuantos cerca del spawn
 	RespawnInterval = 30, -- segundos entre reposiciones
 	RespawnBatch = 10,
 	ClusterSizes = { 1, 1, 1, 2, 3, 4 }, -- tamaños posibles de grupo (se elige uno al azar)

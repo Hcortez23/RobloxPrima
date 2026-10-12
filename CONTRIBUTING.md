@@ -65,9 +65,12 @@ Para que no choque con el resto:
 - Cambiar el arte no toca esta lógica.
 
 ## Mundo
-- `server/Features/World.luau` + `shared/Config/World.luau`: foso circular hacia el núcleo hecho con **Terrain generado por código** al arrancar (no se guarda en el repo). Meseta con foso, capas de roca con cuevas naturales, pozos de acceso, spawn y muros invisibles en el borde.
+- `server/Features/World.luau` + `shared/Config/World.luau`: **gran foso** (radio 170, 200 de profundidad, paredes empinadas) en un Terrain de 768×768 y 320 hacia el núcleo, generado por código al arrancar (no se guarda en el repo). Capas de roca con cuevas naturales.
+- **Accesos:** pozos en la meseta, bocas de cueva horizontales en las paredes del foso y pozos en el fondo.
+- **Iluminación:** cristales luminosos en las cuevas (un color por capa) y los minerales también brillan; `Lighting.Ambient` está subido un poco en `default.project.json`.
 - **Reinicio diario:** la semilla es la fecha UTC, así que cada servidor genera el mismo mundo ese día. `Seed = <número>` en el config fija un mundo para depurar.
-- **Minerales:** pool repartido por capas (más raros hacia el núcleo, pesos en `Layers`), en grupos de 1 a 4, repuestos cada 30 s hasta `MineralCount`. Salud por rareza en `Config/Minerals.luau`.
+- **Minerales:** pool repartido por capas (más raros hacia el núcleo), en grupos de 1 a 4, repuestos cada 30 s hasta `MineralCount`; además unos cuantos a la vista en la meseta, las paredes y cerca del spawn. Salud por rareza en `Config/Minerals.luau`.
 - Las explosiones de minerales excavan el terreno (`CarveFactor`). Fracture puede añadir fragmentos al excavar, suscribiéndose a `Minerals.Exploded`.
-- Los jugadores aparecen cuando termina de generarse (`Output` imprime tiempo y % de aire por capa, útil para afinar las cuevas).
-- Se eliminaron el Baseplate y `TestRoom`; el suelo ahora es Terrain.
+- Los jugadores aparecen cuando termina de generarse (el Output imprime tiempo y % de aire por capa, útil para afinar las cuevas).
+- Sin plataformas: no hay Baseplate, `TestRoom` ni `GrappleTest`; el suelo es Terrain y el gancho se engancha al terreno.
+- El rifle ya no sale de StarterPack: `Weapon` (servidor) lo entrega al aparecer cada personaje, y `Movement` evita duplicar el gancho.

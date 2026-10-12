@@ -3,7 +3,6 @@
 -- Otras features (Fracture, etc.) se suscriben a Hit; Weapon no sabe qué es "Fracturable".
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local StarterPack = game:GetService("StarterPack")
 
 local Config = require(ReplicatedStorage.Shared.Config.Weapon)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
@@ -47,7 +46,24 @@ return {
 	Hit = hitEvent.Event,
 
 	Start = function()
-		buildTool().Parent = StarterPack
+		-- El rifle se entrega al aparecer cada personaje (sin StarterPack, para no depender del orden de arranque).
+		local template = buildTool()
+		local function give(player: Player)
+			local backpack = player:WaitForChild("Backpack")
+			local char = player.Character
+			if backpack:FindFirstChild(Config.ToolName) or (char and char:FindFirstChild(Config.ToolName)) then return end
+			template:Clone().Parent = backpack
+		end
+		local function onPlayer(player: Player)
+			player.CharacterAdded:Connect(function()
+				task.wait()
+				give(player)
+			end)
+			if player.Character then task.spawn(give, player) end
+		end
+		Players.PlayerAdded:Connect(onPlayer)
+		for _, p in Players:GetPlayers() do onPlayer(p) end
+
 		local fire, tracer = Remotes.get("Weapon_Fire"), Remotes.get("Weapon_Tracer")
 
 		-- aim: punto del mundo al que apunta la mira del jugador
