@@ -1,5 +1,5 @@
 return {
-	DoubleJumpPower = 85,
+	DoubleJumpPower = 70,
 	DoubleJumpCooldown = 2, -- segundos entre un doble salto y el siguiente
 	DoubleJumpDelay = 0.2, -- segundos en el aire antes de poder usar el segundo salto
 	DoubleJumpFlipTime = 0.45, -- duración del mortal del doble salto
