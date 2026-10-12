@@ -54,3 +54,8 @@ Para que no choque con el resto:
       -- si instance tiene el tag "Fracturable", soltar celdas cerca de position
   end)
   ```
+
+## Minerales
+- `server/Features/Minerals.luau`: un disparo suelta el mineral (impulso + flota; números en `Config/MineralBehavior.luau`).
+- `server/Features/Capture.luau`: tocar un mineral suelto lo captura y suma su valor al atributo `Carried` del jugador.
+- Los minerales son cualquier `Part` con el tag `Mineral` y atributo `Rarity` (ver `Config/Minerals.luau`); cambiar el arte no toca esta lógica.
