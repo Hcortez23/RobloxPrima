@@ -1,4 +1,4 @@
--- Mira fija al centro de la pantalla (1ª y 3ª persona, estilo Fortnite) mientras hay arma o gancho en la mano.
+-- Mira y modo de apuntado (Ctrl alterna Lock estilo Fortnite / Libre en 3ª persona; ver abajo).
 -- Mantener clic izquierdo dispara el arma equipada; el rayo real sale de la boca del arma (lo traza el
 -- servidor) hacia el punto que cubre la mira.
 local Debris = game:GetService("Debris")
@@ -62,17 +62,35 @@ return {
 		if player.Character then watchCrosshair(player.Character) end
 		player.CharacterAdded:Connect(watchCrosshair)
 
-		-- Con arma/gancho en la mano (mira visible), en 1ª y 3ª persona: mouse fijo al centro y la mira siempre
-		-- en el centro, como en Fortnite; en 3ª el personaje mira hacia donde apunta la cámara.
-		-- Sin arma en 3ª persona: mouse libre y cursor normal.
-		RunService.RenderStepped:Connect(function()
+		-- Ctrl alterna el modo de apuntado en 3ª persona (en 1ª siempre está bloqueado):
+		--  · Lock (por defecto, estilo Fortnite): mouse fijo al centro, mira al centro, cámara sobre el hombro y el
+		--    personaje mira hacia donde apunta la cámara.
+		--  · Libre: mouse libre y la mira sigue al cursor.
+		-- Sin arma/gancho en 3ª persona: mouse libre y cursor normal.
+		local lockMode = true
+		UserInputService.InputBegan:Connect(function(input, processed)
+			if not processed and (input.KeyCode == Enum.KeyCode.LeftControl or input.KeyCode == Enum.KeyCode.RightControl) then
+				lockMode = not lockMode
+			end
+		end)
+
+		-- punto de la pantalla al que apunta la mira
+		local function aimPosition(): Vector2
+			local cam = workspace.CurrentCamera
+			if lockMode or isFirstPerson() then return cam.ViewportSize / 2 end
+			return UserInputService:GetMouseLocation()
+		end
+
+		local shoulder = Vector3.zero
+		RunService.RenderStepped:Connect(function(dt)
 			local cam = workspace.CurrentCamera
 			local char = player.Character
 			local hum = char and char:FindFirstChildOfClass("Humanoid")
 			local root = char and char:FindFirstChild("HumanoidRootPart")
 			local first, armed = isFirstPerson(), crosshair.Enabled
+			local locked = first or (armed and lockMode)
 
-			if first or armed then
+			if locked then
 				UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
 				UserInputService.MouseIconEnabled = false
 			else
@@ -80,17 +98,23 @@ return {
 				if not UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
 					UserInputService.MouseBehavior = Enum.MouseBehavior.Default
 				end
-				UserInputService.MouseIconEnabled = true
+				UserInputService.MouseIconEnabled = not armed -- armado y libre: la mira sigue al cursor
 			end
-			crosshairCenter.Position = UDim2.fromOffset(cam.ViewportSize.X / 2, cam.ViewportSize.Y / 2)
+			local aim = aimPosition()
+			crosshairCenter.Position = UDim2.fromOffset(aim.X, aim.Y)
 
 			if hum and root and hum.Health > 0 then
-				local turn = armed and not first
+				local turn = armed and lockMode and not first
 				hum.AutoRotate = not turn
 				local look = cam.CFrame.LookVector
 				if turn and Vector3.new(look.X, 0, look.Z).Magnitude > 0.01 then
 					root.CFrame = CFrame.lookAt(root.Position, root.Position + Vector3.new(look.X, 0, look.Z))
 				end
+
+				-- cámara sobre el hombro (suave) + temblor de explosiones (atributo CameraShake de Minerals)
+				local target = if turn then Config.ShoulderOffset else Vector3.zero
+				shoulder = shoulder:Lerp(target, math.min(dt * 10, 1))
+				hum.CameraOffset = shoulder + (char:GetAttribute("CameraShake") or Vector3.zero)
 			end
 		end)
 
@@ -114,7 +138,7 @@ return {
 			local char = player.Character
 			if not (char and char:FindFirstChild(Config.ToolName)) then return end
 			local cam = workspace.CurrentCamera
-			local mouse = cam.ViewportSize / 2 -- la mira siempre está en el centro
+			local mouse = aimPosition()
 			local ray = cam:ViewportPointToRay(mouse.X, mouse.Y)
 			local params = RaycastParams.new()
 			params.FilterType = Enum.RaycastFilterType.Exclude

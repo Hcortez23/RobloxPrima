@@ -7,7 +7,7 @@ return {
 	DoubleJumpTuckKnee = 120, -- grados que se doblan las rodillas
 	SprintSpeed = 26, -- velocidad al correr con Shift (la normal de Roblox es 16)
 	GrappleRange = 120, -- alcance máximo del gancho en studs
-	GrapplePullSpeed = 140, -- velocidad con la que jala el gancho
+	GrapplePullSpeed = 100, -- velocidad con la que jala el gancho
 	GrappleReleaseDistance = 4, -- se suelta solo al llegar a esta distancia del punto
 	GrappleCooldown = 0.4, -- segundos entre un disparo del gancho y el siguiente
 	GrappleRopeColor = Color3.fromRGB(255, 255, 255),

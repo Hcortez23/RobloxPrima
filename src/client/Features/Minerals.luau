@@ -37,11 +37,11 @@ local function shake(pos: Vector3, radius: number)
 	conn = RunService.RenderStepped:Connect(function()
 		local k = 1 - (os.clock() - t0) / 0.35
 		if k <= 0 then
-			hum.CameraOffset = Vector3.zero
+			char:SetAttribute("CameraShake", nil)
 			conn:Disconnect()
 			return
 		end
-		hum.CameraOffset = Vector3.new(math.random() - 0.5, math.random() - 0.5, 0) * 2 * power * k
+		char:SetAttribute("CameraShake", Vector3.new(math.random() - 0.5, math.random() - 0.5, 0) * 2 * power * k) -- Weapon lo suma al CameraOffset
 	end)
 end
 
