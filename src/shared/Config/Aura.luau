@@ -4,8 +4,17 @@ return {
 	MaxParticles = 14, -- tope de destellos por segundo, aunque el objeto sea grande
 	-- Nombres de objetos directos de Workspace que reciben el aura sin necesidad del tag "Aura".
 	WorkspaceTargets = {},
-	-- Copiar los efectos de un modelo (From) a otro (To). Rutas dentro de Workspace, un nombre por nivel.
-	CopyEffects = {
-		{ From = { "VFX Auras", "Dummy" }, To = { "super ore" } },
+	-- Copiar los efectos de un modelo (From) a otro (To), un nombre por nivel. To está en Workspace;
+	-- From se busca en ReplicatedStorage.Assets, luego en ReplicatedStorage y al final en Workspace.
+	-- Rareza -> modelo cuyos efectos reciben todos los minerales de esa rareza (misma búsqueda que From).
+	RarityEffects = {
+		Raro = { "Aura Pack Premium By Sanzzzzz", "Aura Kurama" },
+	},
+	CopyEffects = {},
+	-- Como CopyEffects pero lo hace el servidor (lo ven todos) y, con RemoveSource, borra el modelo de origen
+	-- del mapa después de copiar (server/Features/AuraTransfer).
+	TransferEffects = {
+		{ From = { "Aura Pack Premium By Sanzzzzz", "Aura_pumpk" }, To = { "super ore" }, RemoveSource = true },
+		{ From = { "Aura Pack Premium By Sanzzzzz", "Aura_Purp" }, To = { "TestRoom", "Mineral_Comun" }, RemoveSource = true },
 	},
 }
