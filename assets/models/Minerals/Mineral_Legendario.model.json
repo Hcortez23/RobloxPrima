@@ -1,0 +1,1152 @@
+{
+    "className":  "Model",
+    "attributes":  {
+                       "Rarity":  "Legendario",
+                       "MineralModel":  true
+                   },
+    "children":  [
+                     {
+                         "name":  "Gem",
+                         "className":  "Part",
+                         "properties":  {
+                                            "Anchored":  true,
+                                            "CanCollide":  false,
+                                            "CastShadow":  false,
+                                            "Material":  "Glass",
+                                            "Color":  [
+                                                          1,
+                                                          0.74509803921568629,
+                                                          0.15686274509803921
+                                                      ],
+                                            "Transparency":  0.15,
+                                            "Size":  [
+                                                         2.7,
+                                                         2.7,
+                                                         2.7
+                                                     ],
+                                            "CFrame":  {
+                                                           "CFrame":  {
+                                                                          "orientation":  [
+                                                                                              [
+                                                                                                  0.4082,
+                                                                                                  -0.8165,
+                                                                                                  0.4082
+                                                                                              ],
+                                                                                              [
+                                                                                                  0.5774,
+                                                                                                  0.5774,
+                                                                                                  0.5774
+                                                                                              ],
+                                                                                              [
+                                                                                                  -0.7071,
+                                                                                                  0,
+                                                                                                  0.7071
+                                                                                              ]
+                                                                                          ],
+                                                                          "position":  [
+                                                                                           0,
+                                                                                           0,
+                                                                                           0
+                                                                                       ]
+                                                                      }
+                                                       }
+                                        }
+                     },
+                     {
+                         "name":  "Core",
+                         "className":  "Part",
+                         "properties":  {
+                                            "Anchored":  true,
+                                            "CanCollide":  false,
+                                            "CastShadow":  false,
+                                            "Material":  "Neon",
+                                            "Color":  [
+                                                          1,
+                                                          0.74509803921568629,
+                                                          0.15686274509803921
+                                                      ],
+                                            "Transparency":  0,
+                                            "Size":  [
+                                                         1.5,
+                                                         1.5,
+                                                         1.5
+                                                     ],
+                                            "CFrame":  {
+                                                           "CFrame":  {
+                                                                          "orientation":  [
+                                                                                              [
+                                                                                                  0,
+                                                                                                  -0.8165,
+                                                                                                  0.5774
+                                                                                              ],
+                                                                                              [
+                                                                                                  0,
+                                                                                                  0.5774,
+                                                                                                  0.8165
+                                                                                              ],
+                                                                                              [
+                                                                                                  -1,
+                                                                                                  0,
+                                                                                                  0
+                                                                                              ]
+                                                                                          ],
+                                                                          "position":  [
+                                                                                           0,
+                                                                                           0,
+                                                                                           0
+                                                                                       ]
+                                                                      }
+                                                       }
+                                        },
+                         "children":  [
+                                          {
+                                              "properties":  {
+                                                                 "Color":  [
+                                                                               1,
+                                                                               0.74509803921568629,
+                                                                               0.15686274509803921
+                                                                           ],
+                                                                 "Range":  12,
+                                                                 "Brightness":  1.8,
+                                                                 "Shadows":  false
+                                                             },
+                                              "className":  "PointLight"
+                                          }
+                                      ]
+                     },
+                     {
+                         "name":  "Halo1",
+                         "className":  "Part",
+                         "properties":  {
+                                            "Anchored":  true,
+                                            "CanCollide":  false,
+                                            "CastShadow":  false,
+                                            "Material":  "Neon",
+                                            "Color":  [
+                                                          1,
+                                                          0.74509803921568629,
+                                                          0.15686274509803921
+                                                      ],
+                                            "Transparency":  0,
+                                            "Size":  [
+                                                         0.2,
+                                                         0.16,
+                                                         1.1958
+                                                     ],
+                                            "CFrame":  {
+                                                           "CFrame":  {
+                                                                          "orientation":  [
+                                                                                              [
+                                                                                                  1,
+                                                                                                  0,
+                                                                                                  0
+                                                                                              ],
+                                                                                              [
+                                                                                                  0,
+                                                                                                  0.9511,
+                                                                                                  -0.309
+                                                                                              ],
+                                                                                              [
+                                                                                                  0,
+                                                                                                  0.309,
+                                                                                                  0.9511
+                                                                                              ]
+                                                                                          ],
+                                                                          "position":  [
+                                                                                           2.9,
+                                                                                           0,
+                                                                                           0
+                                                                                       ]
+                                                                      }
+                                                       }
+                                        }
+                     },
+                     {
+                         "name":  "Halo2",
+                         "className":  "Part",
+                         "properties":  {
+                                            "Anchored":  true,
+                                            "CanCollide":  false,
+                                            "CastShadow":  false,
+                                            "Material":  "Neon",
+                                            "Color":  [
+                                                          1,
+                                                          0.74509803921568629,
+                                                          0.15686274509803921
+                                                      ],
+                                            "Transparency":  0,
+                                            "Size":  [
+                                                         0.2,
+                                                         0.16,
+                                                         1.1958
+                                                     ],
+                                            "CFrame":  {
+                                                           "CFrame":  {
+                                                                          "orientation":  [
+                                                                                              [
+                                                                                                  0.9239,
+                                                                                                  0,
+                                                                                                  -0.3827
+                                                                                              ],
+                                                                                              [
+                                                                                                  -0.1183,
+                                                                                                  0.9511,
+                                                                                                  -0.2855
+                                                                                              ],
+                                                                                              [
+                                                                                                  0.364,
+                                                                                                  0.309,
+                                                                                                  0.8787
+                                                                                              ]
+                                                                                          ],
+                                                                          "position":  [
+                                                                                           2.6793,
+                                                                                           -0.3429,
+                                                                                           1.0555
+                                                                                       ]
+                                                                      }
+                                                       }
+                                        }
+                     },
+                     {
+                         "name":  "Halo3",
+                         "className":  "Part",
+                         "properties":  {
+                                            "Anchored":  true,
+                                            "CanCollide":  false,
+                                            "CastShadow":  false,
+                                            "Material":  "Neon",
+                                            "Color":  [
+                                                          1,
+                                                          0.74509803921568629,
+                                                          0.15686274509803921
+                                                      ],
+                                            "Transparency":  0,
+                                            "Size":  [
+                                                         0.2,
+                                                         0.16,
+                                                         1.1958
+                                                     ],
+                                            "CFrame":  {
+                                                           "CFrame":  {
+                                                                          "orientation":  [
+                                                                                              [
+                                                                                                  0.7071,
+                                                                                                  0,
+                                                                                                  -0.7071
+                                                                                              ],
+                                                                                              [
+                                                                                                  -0.2185,
+                                                                                                  0.9511,
+                                                                                                  -0.2185
+                                                                                              ],
+                                                                                              [
+                                                                                                  0.6725,
+                                                                                                  0.309,
+                                                                                                  0.6725
+                                                                                              ]
+                                                                                          ],
+                                                                          "position":  [
+                                                                                           2.0506,
+                                                                                           -0.6337,
+                                                                                           1.9502
+                                                                                       ]
+                                                                      }
+                                                       }
+                                        }
+                     },
+                     {
+                         "name":  "Halo4",
+                         "className":  "Part",
+                         "properties":  {
+                                            "Anchored":  true,
+                                            "CanCollide":  false,
+                                            "CastShadow":  false,
+                                            "Material":  "Neon",
+                                            "Color":  [
+                                                          1,
+                                                          0.74509803921568629,
+                                                          0.15686274509803921
+                                                      ],
+                                            "Transparency":  0,
+                                            "Size":  [
+                                                         0.2,
+                                                         0.16,
+                                                         1.1958
+                                                     ],
+                                            "CFrame":  {
+                                                           "CFrame":  {
+                                                                          "orientation":  [
+                                                                                              [
+                                                                                                  0.3827,
+                                                                                                  0,
+                                                                                                  -0.9239
+                                                                                              ],
+                                                                                              [
+                                                                                                  -0.2855,
+                                                                                                  0.9511,
+                                                                                                  -0.1183
+                                                                                              ],
+                                                                                              [
+                                                                                                  0.8787,
+                                                                                                  0.309,
+                                                                                                  0.364
+                                                                                              ]
+                                                                                          ],
+                                                                          "position":  [
+                                                                                           1.1098,
+                                                                                           -0.8279,
+                                                                                           2.5481
+                                                                                       ]
+                                                                      }
+                                                       }
+                                        }
+                     },
+                     {
+                         "name":  "Halo5",
+                         "className":  "Part",
+                         "properties":  {
+                                            "Anchored":  true,
+                                            "CanCollide":  false,
+                                            "CastShadow":  false,
+                                            "Material":  "Neon",
+                                            "Color":  [
+                                                          1,
+                                                          0.74509803921568629,
+                                                          0.15686274509803921
+                                                      ],
+                                            "Transparency":  0,
+                                            "Size":  [
+                                                         0.2,
+                                                         0.16,
+                                                         1.1958
+                                                     ],
+                                            "CFrame":  {
+                                                           "CFrame":  {
+                                                                          "orientation":  [
+                                                                                              [
+                                                                                                  0,
+                                                                                                  0,
+                                                                                                  -1
+                                                                                              ],
+                                                                                              [
+                                                                                                  -0.309,
+                                                                                                  0.9511,
+                                                                                                  0
+                                                                                              ],
+                                                                                              [
+                                                                                                  0.9511,
+                                                                                                  0.309,
+                                                                                                  0
+                                                                                              ]
+                                                                                          ],
+                                                                          "position":  [
+                                                                                           0,
+                                                                                           -0.8961,
+                                                                                           2.7581
+                                                                                       ]
+                                                                      }
+                                                       }
+                                        }
+                     },
+                     {
+                         "name":  "Halo6",
+                         "className":  "Part",
+                         "properties":  {
+                                            "Anchored":  true,
+                                            "CanCollide":  false,
+                                            "CastShadow":  false,
+                                            "Material":  "Neon",
+                                            "Color":  [
+                                                          1,
+                                                          0.74509803921568629,
+                                                          0.15686274509803921
+                                                      ],
+                                            "Transparency":  0,
+                                            "Size":  [
+                                                         0.2,
+                                                         0.16,
+                                                         1.1958
+                                                     ],
+                                            "CFrame":  {
+                                                           "CFrame":  {
+                                                                          "orientation":  [
+                                                                                              [
+                                                                                                  -0.3827,
+                                                                                                  0,
+                                                                                                  -0.9239
+                                                                                              ],
+                                                                                              [
+                                                                                                  -0.2855,
+                                                                                                  0.9511,
+                                                                                                  0.1183
+                                                                                              ],
+                                                                                              [
+                                                                                                  0.8787,
+                                                                                                  0.309,
+                                                                                                  -0.364
+                                                                                              ]
+                                                                                          ],
+                                                                          "position":  [
+                                                                                           -1.1098,
+                                                                                           -0.8279,
+                                                                                           2.5481
+                                                                                       ]
+                                                                      }
+                                                       }
+                                        }
+                     },
+                     {
+                         "name":  "Halo7",
+                         "className":  "Part",
+                         "properties":  {
+                                            "Anchored":  true,
+                                            "CanCollide":  false,
+                                            "CastShadow":  false,
+                                            "Material":  "Neon",
+                                            "Color":  [
+                                                          1,
+                                                          0.74509803921568629,
+                                                          0.15686274509803921
+                                                      ],
+                                            "Transparency":  0,
+                                            "Size":  [
+                                                         0.2,
+                                                         0.16,
+                                                         1.1958
+                                                     ],
+                                            "CFrame":  {
+                                                           "CFrame":  {
+                                                                          "orientation":  [
+                                                                                              [
+                                                                                                  -0.7071,
+                                                                                                  0,
+                                                                                                  -0.7071
+                                                                                              ],
+                                                                                              [
+                                                                                                  -0.2185,
+                                                                                                  0.9511,
+                                                                                                  0.2185
+                                                                                              ],
+                                                                                              [
+                                                                                                  0.6725,
+                                                                                                  0.309,
+                                                                                                  -0.6725
+                                                                                              ]
+                                                                                          ],
+                                                                          "position":  [
+                                                                                           -2.0506,
+                                                                                           -0.6337,
+                                                                                           1.9502
+                                                                                       ]
+                                                                      }
+                                                       }
+                                        }
+                     },
+                     {
+                         "name":  "Halo8",
+                         "className":  "Part",
+                         "properties":  {
+                                            "Anchored":  true,
+                                            "CanCollide":  false,
+                                            "CastShadow":  false,
+                                            "Material":  "Neon",
+                                            "Color":  [
+                                                          1,
+                                                          0.74509803921568629,
+                                                          0.15686274509803921
+                                                      ],
+                                            "Transparency":  0,
+                                            "Size":  [
+                                                         0.2,
+                                                         0.16,
+                                                         1.1958
+                                                     ],
+                                            "CFrame":  {
+                                                           "CFrame":  {
+                                                                          "orientation":  [
+                                                                                              [
+                                                                                                  -0.9239,
+                                                                                                  0,
+                                                                                                  -0.3827
+                                                                                              ],
+                                                                                              [
+                                                                                                  -0.1183,
+                                                                                                  0.9511,
+                                                                                                  0.2855
+                                                                                              ],
+                                                                                              [
+                                                                                                  0.364,
+                                                                                                  0.309,
+                                                                                                  -0.8787
+                                                                                              ]
+                                                                                          ],
+                                                                          "position":  [
+                                                                                           -2.6793,
+                                                                                           -0.3429,
+                                                                                           1.0555
+                                                                                       ]
+                                                                      }
+                                                       }
+                                        }
+                     },
+                     {
+                         "name":  "Halo9",
+                         "className":  "Part",
+                         "properties":  {
+                                            "Anchored":  true,
+                                            "CanCollide":  false,
+                                            "CastShadow":  false,
+                                            "Material":  "Neon",
+                                            "Color":  [
+                                                          1,
+                                                          0.74509803921568629,
+                                                          0.15686274509803921
+                                                      ],
+                                            "Transparency":  0,
+                                            "Size":  [
+                                                         0.2,
+                                                         0.16,
+                                                         1.1958
+                                                     ],
+                                            "CFrame":  {
+                                                           "CFrame":  {
+                                                                          "orientation":  [
+                                                                                              [
+                                                                                                  -1,
+                                                                                                  0,
+                                                                                                  0
+                                                                                              ],
+                                                                                              [
+                                                                                                  0,
+                                                                                                  0.9511,
+                                                                                                  0.309
+                                                                                              ],
+                                                                                              [
+                                                                                                  0,
+                                                                                                  0.309,
+                                                                                                  -0.9511
+                                                                                              ]
+                                                                                          ],
+                                                                          "position":  [
+                                                                                           -2.9,
+                                                                                           0,
+                                                                                           0
+                                                                                       ]
+                                                                      }
+                                                       }
+                                        }
+                     },
+                     {
+                         "name":  "Halo10",
+                         "className":  "Part",
+                         "properties":  {
+                                            "Anchored":  true,
+                                            "CanCollide":  false,
+                                            "CastShadow":  false,
+                                            "Material":  "Neon",
+                                            "Color":  [
+                                                          1,
+                                                          0.74509803921568629,
+                                                          0.15686274509803921
+                                                      ],
+                                            "Transparency":  0,
+                                            "Size":  [
+                                                         0.2,
+                                                         0.16,
+                                                         1.1958
+                                                     ],
+                                            "CFrame":  {
+                                                           "CFrame":  {
+                                                                          "orientation":  [
+                                                                                              [
+                                                                                                  -0.9239,
+                                                                                                  0,
+                                                                                                  0.3827
+                                                                                              ],
+                                                                                              [
+                                                                                                  0.1183,
+                                                                                                  0.9511,
+                                                                                                  0.2855
+                                                                                              ],
+                                                                                              [
+                                                                                                  -0.364,
+                                                                                                  0.309,
+                                                                                                  -0.8787
+                                                                                              ]
+                                                                                          ],
+                                                                          "position":  [
+                                                                                           -2.6793,
+                                                                                           0.3429,
+                                                                                           -1.0555
+                                                                                       ]
+                                                                      }
+                                                       }
+                                        }
+                     },
+                     {
+                         "name":  "Halo11",
+                         "className":  "Part",
+                         "properties":  {
+                                            "Anchored":  true,
+                                            "CanCollide":  false,
+                                            "CastShadow":  false,
+                                            "Material":  "Neon",
+                                            "Color":  [
+                                                          1,
+                                                          0.74509803921568629,
+                                                          0.15686274509803921
+                                                      ],
+                                            "Transparency":  0,
+                                            "Size":  [
+                                                         0.2,
+                                                         0.16,
+                                                         1.1958
+                                                     ],
+                                            "CFrame":  {
+                                                           "CFrame":  {
+                                                                          "orientation":  [
+                                                                                              [
+                                                                                                  -0.7071,
+                                                                                                  0,
+                                                                                                  0.7071
+                                                                                              ],
+                                                                                              [
+                                                                                                  0.2185,
+                                                                                                  0.9511,
+                                                                                                  0.2185
+                                                                                              ],
+                                                                                              [
+                                                                                                  -0.6725,
+                                                                                                  0.309,
+                                                                                                  -0.6725
+                                                                                              ]
+                                                                                          ],
+                                                                          "position":  [
+                                                                                           -2.0506,
+                                                                                           0.6337,
+                                                                                           -1.9502
+                                                                                       ]
+                                                                      }
+                                                       }
+                                        }
+                     },
+                     {
+                         "name":  "Halo12",
+                         "className":  "Part",
+                         "properties":  {
+                                            "Anchored":  true,
+                                            "CanCollide":  false,
+                                            "CastShadow":  false,
+                                            "Material":  "Neon",
+                                            "Color":  [
+                                                          1,
+                                                          0.74509803921568629,
+                                                          0.15686274509803921
+                                                      ],
+                                            "Transparency":  0,
+                                            "Size":  [
+                                                         0.2,
+                                                         0.16,
+                                                         1.1958
+                                                     ],
+                                            "CFrame":  {
+                                                           "CFrame":  {
+                                                                          "orientation":  [
+                                                                                              [
+                                                                                                  -0.3827,
+                                                                                                  0,
+                                                                                                  0.9239
+                                                                                              ],
+                                                                                              [
+                                                                                                  0.2855,
+                                                                                                  0.9511,
+                                                                                                  0.1183
+                                                                                              ],
+                                                                                              [
+                                                                                                  -0.8787,
+                                                                                                  0.309,
+                                                                                                  -0.364
+                                                                                              ]
+                                                                                          ],
+                                                                          "position":  [
+                                                                                           -1.1098,
+                                                                                           0.8279,
+                                                                                           -2.5481
+                                                                                       ]
+                                                                      }
+                                                       }
+                                        }
+                     },
+                     {
+                         "name":  "Halo13",
+                         "className":  "Part",
+                         "properties":  {
+                                            "Anchored":  true,
+                                            "CanCollide":  false,
+                                            "CastShadow":  false,
+                                            "Material":  "Neon",
+                                            "Color":  [
+                                                          1,
+                                                          0.74509803921568629,
+                                                          0.15686274509803921
+                                                      ],
+                                            "Transparency":  0,
+                                            "Size":  [
+                                                         0.2,
+                                                         0.16,
+                                                         1.1958
+                                                     ],
+                                            "CFrame":  {
+                                                           "CFrame":  {
+                                                                          "orientation":  [
+                                                                                              [
+                                                                                                  0,
+                                                                                                  0,
+                                                                                                  1
+                                                                                              ],
+                                                                                              [
+                                                                                                  0.309,
+                                                                                                  0.9511,
+                                                                                                  0
+                                                                                              ],
+                                                                                              [
+                                                                                                  -0.9511,
+                                                                                                  0.309,
+                                                                                                  0
+                                                                                              ]
+                                                                                          ],
+                                                                          "position":  [
+                                                                                           0,
+                                                                                           0.8961,
+                                                                                           -2.7581
+                                                                                       ]
+                                                                      }
+                                                       }
+                                        }
+                     },
+                     {
+                         "name":  "Halo14",
+                         "className":  "Part",
+                         "properties":  {
+                                            "Anchored":  true,
+                                            "CanCollide":  false,
+                                            "CastShadow":  false,
+                                            "Material":  "Neon",
+                                            "Color":  [
+                                                          1,
+                                                          0.74509803921568629,
+                                                          0.15686274509803921
+                                                      ],
+                                            "Transparency":  0,
+                                            "Size":  [
+                                                         0.2,
+                                                         0.16,
+                                                         1.1958
+                                                     ],
+                                            "CFrame":  {
+                                                           "CFrame":  {
+                                                                          "orientation":  [
+                                                                                              [
+                                                                                                  0.3827,
+                                                                                                  0,
+                                                                                                  0.9239
+                                                                                              ],
+                                                                                              [
+                                                                                                  0.2855,
+                                                                                                  0.9511,
+                                                                                                  -0.1183
+                                                                                              ],
+                                                                                              [
+                                                                                                  -0.8787,
+                                                                                                  0.309,
+                                                                                                  0.364
+                                                                                              ]
+                                                                                          ],
+                                                                          "position":  [
+                                                                                           1.1098,
+                                                                                           0.8279,
+                                                                                           -2.5481
+                                                                                       ]
+                                                                      }
+                                                       }
+                                        }
+                     },
+                     {
+                         "name":  "Halo15",
+                         "className":  "Part",
+                         "properties":  {
+                                            "Anchored":  true,
+                                            "CanCollide":  false,
+                                            "CastShadow":  false,
+                                            "Material":  "Neon",
+                                            "Color":  [
+                                                          1,
+                                                          0.74509803921568629,
+                                                          0.15686274509803921
+                                                      ],
+                                            "Transparency":  0,
+                                            "Size":  [
+                                                         0.2,
+                                                         0.16,
+                                                         1.1958
+                                                     ],
+                                            "CFrame":  {
+                                                           "CFrame":  {
+                                                                          "orientation":  [
+                                                                                              [
+                                                                                                  0.7071,
+                                                                                                  0,
+                                                                                                  0.7071
+                                                                                              ],
+                                                                                              [
+                                                                                                  0.2185,
+                                                                                                  0.9511,
+                                                                                                  -0.2185
+                                                                                              ],
+                                                                                              [
+                                                                                                  -0.6725,
+                                                                                                  0.309,
+                                                                                                  0.6725
+                                                                                              ]
+                                                                                          ],
+                                                                          "position":  [
+                                                                                           2.0506,
+                                                                                           0.6337,
+                                                                                           -1.9502
+                                                                                       ]
+                                                                      }
+                                                       }
+                                        }
+                     },
+                     {
+                         "name":  "Halo16",
+                         "className":  "Part",
+                         "properties":  {
+                                            "Anchored":  true,
+                                            "CanCollide":  false,
+                                            "CastShadow":  false,
+                                            "Material":  "Neon",
+                                            "Color":  [
+                                                          1,
+                                                          0.74509803921568629,
+                                                          0.15686274509803921
+                                                      ],
+                                            "Transparency":  0,
+                                            "Size":  [
+                                                         0.2,
+                                                         0.16,
+                                                         1.1958
+                                                     ],
+                                            "CFrame":  {
+                                                           "CFrame":  {
+                                                                          "orientation":  [
+                                                                                              [
+                                                                                                  0.9239,
+                                                                                                  0,
+                                                                                                  0.3827
+                                                                                              ],
+                                                                                              [
+                                                                                                  0.1183,
+                                                                                                  0.9511,
+                                                                                                  -0.2855
+                                                                                              ],
+                                                                                              [
+                                                                                                  -0.364,
+                                                                                                  0.309,
+                                                                                                  0.8787
+                                                                                              ]
+                                                                                          ],
+                                                                          "position":  [
+                                                                                           2.6793,
+                                                                                           0.3429,
+                                                                                           -1.0555
+                                                                                       ]
+                                                                      }
+                                                       }
+                                        }
+                     },
+                     {
+                         "name":  "Orbit1",
+                         "className":  "Part",
+                         "properties":  {
+                                            "Anchored":  true,
+                                            "CanCollide":  false,
+                                            "CastShadow":  false,
+                                            "Material":  "Neon",
+                                            "Color":  [
+                                                          1,
+                                                          0.74509803921568629,
+                                                          0.15686274509803921
+                                                      ],
+                                            "Transparency":  0,
+                                            "Size":  [
+                                                         0.4,
+                                                         0.9,
+                                                         0.4
+                                                     ],
+                                            "CFrame":  {
+                                                           "CFrame":  {
+                                                                          "orientation":  [
+                                                                                              [
+                                                                                                  0.2919,
+                                                                                                  0.2113,
+                                                                                                  0.9328
+                                                                                              ],
+                                                                                              [
+                                                                                                  0.2988,
+                                                                                                  0.9063,
+                                                                                                  -0.2988
+                                                                                              ],
+                                                                                              [
+                                                                                                  -0.9086,
+                                                                                                  0.366,
+                                                                                                  0.2014
+                                                                                              ]
+                                                                                          ],
+                                                                          "position":  [
+                                                                                           1.9137,
+                                                                                           -0.7922,
+                                                                                           1.2147
+                                                                                       ]
+                                                                      }
+                                                       }
+                                        }
+                     },
+                     {
+                         "name":  "Orbit1Tip",
+                         "className":  "Part",
+                         "properties":  {
+                                            "Anchored":  true,
+                                            "CanCollide":  false,
+                                            "CastShadow":  false,
+                                            "Material":  "Neon",
+                                            "Color":  [
+                                                          1,
+                                                          0.74509803921568629,
+                                                          0.15686274509803921
+                                                      ],
+                                            "Transparency":  0,
+                                            "Size":  [
+                                                         0.22,
+                                                         0.315,
+                                                         0.22
+                                                     ],
+                                            "CFrame":  {
+                                                           "CFrame":  {
+                                                                          "orientation":  [
+                                                                                              [
+                                                                                                  0.2919,
+                                                                                                  0.2113,
+                                                                                                  0.9328
+                                                                                              ],
+                                                                                              [
+                                                                                                  0.2988,
+                                                                                                  0.9063,
+                                                                                                  -0.2988
+                                                                                              ],
+                                                                                              [
+                                                                                                  -0.9086,
+                                                                                                  0.366,
+                                                                                                  0.2014
+                                                                                              ]
+                                                                                          ],
+                                                                          "position":  [
+                                                                                           2.021,
+                                                                                           -0.3322,
+                                                                                           1.4004
+                                                                                       ]
+                                                                      }
+                                                       }
+                                        }
+                     },
+                     {
+                         "name":  "Orbit2",
+                         "className":  "Part",
+                         "properties":  {
+                                            "Anchored":  true,
+                                            "CanCollide":  false,
+                                            "CastShadow":  false,
+                                            "Material":  "Neon",
+                                            "Color":  [
+                                                          1,
+                                                          0.74509803921568629,
+                                                          0.15686274509803921
+                                                      ],
+                                            "Transparency":  0,
+                                            "Size":  [
+                                                         0.4,
+                                                         0.9,
+                                                         0.4
+                                                     ],
+                                            "CFrame":  {
+                                                           "CFrame":  {
+                                                                          "orientation":  [
+                                                                                              [
+                                                                                                  -0.9328,
+                                                                                                  0.2113,
+                                                                                                  -0.2919
+                                                                                              ],
+                                                                                              [
+                                                                                                  0.2988,
+                                                                                                  0.9063,
+                                                                                                  -0.2988
+                                                                                              ],
+                                                                                              [
+                                                                                                  0.2014,
+                                                                                                  -0.366,
+                                                                                                  -0.9086
+                                                                                              ]
+                                                                                          ],
+                                                                          "position":  [
+                                                                                           -1.7236,
+                                                                                           0.4078,
+                                                                                           0.8853
+                                                                                       ]
+                                                                      }
+                                                       }
+                                        }
+                     },
+                     {
+                         "name":  "Orbit2Tip",
+                         "className":  "Part",
+                         "properties":  {
+                                            "Anchored":  true,
+                                            "CanCollide":  false,
+                                            "CastShadow":  false,
+                                            "Material":  "Neon",
+                                            "Color":  [
+                                                          1,
+                                                          0.74509803921568629,
+                                                          0.15686274509803921
+                                                      ],
+                                            "Transparency":  0,
+                                            "Size":  [
+                                                         0.22,
+                                                         0.315,
+                                                         0.22
+                                                     ],
+                                            "CFrame":  {
+                                                           "CFrame":  {
+                                                                          "orientation":  [
+                                                                                              [
+                                                                                                  -0.9328,
+                                                                                                  0.2113,
+                                                                                                  -0.2919
+                                                                                              ],
+                                                                                              [
+                                                                                                  0.2988,
+                                                                                                  0.9063,
+                                                                                                  -0.2988
+                                                                                              ],
+                                                                                              [
+                                                                                                  0.2014,
+                                                                                                  -0.366,
+                                                                                                  -0.9086
+                                                                                              ]
+                                                                                          ],
+                                                                          "position":  [
+                                                                                           -1.6163,
+                                                                                           0.8678,
+                                                                                           0.6996
+                                                                                       ]
+                                                                      }
+                                                       }
+                                        }
+                     },
+                     {
+                         "name":  "Orbit3",
+                         "className":  "Part",
+                         "properties":  {
+                                            "Anchored":  true,
+                                            "CanCollide":  false,
+                                            "CastShadow":  false,
+                                            "Material":  "Neon",
+                                            "Color":  [
+                                                          1,
+                                                          0.74509803921568629,
+                                                          0.15686274509803921
+                                                      ],
+                                            "Transparency":  0,
+                                            "Size":  [
+                                                         0.4,
+                                                         0.9,
+                                                         0.4
+                                                     ],
+                                            "CFrame":  {
+                                                           "CFrame":  {
+                                                                          "orientation":  [
+                                                                                              [
+                                                                                                  0.6409,
+                                                                                                  -0.4226,
+                                                                                                  -0.6409
+                                                                                              ],
+                                                                                              [
+                                                                                                  0.2988,
+                                                                                                  0.9063,
+                                                                                                  -0.2988
+                                                                                              ],
+                                                                                              [
+                                                                                                  0.7071,
+                                                                                                  0,
+                                                                                                  0.7071
+                                                                                              ]
+                                                                                          ],
+                                                                          "position":  [
+                                                                                           -0.1902,
+                                                                                           1.6078,
+                                                                                           -2.1
+                                                                                       ]
+                                                                      }
+                                                       }
+                                        }
+                     },
+                     {
+                         "name":  "Orbit3Tip",
+                         "className":  "Part",
+                         "properties":  {
+                                            "Anchored":  true,
+                                            "CanCollide":  false,
+                                            "CastShadow":  false,
+                                            "Material":  "Neon",
+                                            "Color":  [
+                                                          1,
+                                                          0.74509803921568629,
+                                                          0.15686274509803921
+                                                      ],
+                                            "Transparency":  0,
+                                            "Size":  [
+                                                         0.22,
+                                                         0.315,
+                                                         0.22
+                                                     ],
+                                            "CFrame":  {
+                                                           "CFrame":  {
+                                                                          "orientation":  [
+                                                                                              [
+                                                                                                  0.6409,
+                                                                                                  -0.4226,
+                                                                                                  -0.6409
+                                                                                              ],
+                                                                                              [
+                                                                                                  0.2988,
+                                                                                                  0.9063,
+                                                                                                  -0.2988
+                                                                                              ],
+                                                                                              [
+                                                                                                  0.7071,
+                                                                                                  0,
+                                                                                                  0.7071
+                                                                                              ]
+                                                                                          ],
+                                                                          "position":  [
+                                                                                           -0.4047,
+                                                                                           2.0678,
+                                                                                           -2.1
+                                                                                       ]
+                                                                      }
+                                                       }
+                                        }
+                     }
+                 ]
+}

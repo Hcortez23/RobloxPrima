@@ -1,0 +1,1045 @@
+{
+    "className":  "Model",
+    "attributes":  {
+                       "Rarity":  "Epico",
+                       "MineralModel":  true
+                   },
+    "children":  [
+                     {
+                         "name":  "Core",
+                         "className":  "Part",
+                         "properties":  {
+                                            "Anchored":  true,
+                                            "CanCollide":  false,
+                                            "CastShadow":  false,
+                                            "Material":  "Neon",
+                                            "Color":  [
+                                                          0.66666666666666663,
+                                                          0.27450980392156865,
+                                                          1
+                                                      ],
+                                            "Transparency":  0,
+                                            "Size":  [
+                                                         1.5,
+                                                         1.5,
+                                                         1.5
+                                                     ],
+                                            "CFrame":  {
+                                                           "CFrame":  {
+                                                                          "orientation":  [
+                                                                                              [
+                                                                                                  1,
+                                                                                                  0,
+                                                                                                  0
+                                                                                              ],
+                                                                                              [
+                                                                                                  0,
+                                                                                                  1,
+                                                                                                  0
+                                                                                              ],
+                                                                                              [
+                                                                                                  0,
+                                                                                                  0,
+                                                                                                  1
+                                                                                              ]
+                                                                                          ],
+                                                                          "position":  [
+                                                                                           0,
+                                                                                           0,
+                                                                                           0
+                                                                                       ]
+                                                                      }
+                                                       },
+                                            "Shape":  "Ball"
+                                        }
+                     },
+                     {
+                         "name":  "Shell",
+                         "className":  "Part",
+                         "properties":  {
+                                            "Anchored":  true,
+                                            "CanCollide":  false,
+                                            "CastShadow":  false,
+                                            "Material":  "Glass",
+                                            "Color":  [
+                                                          0.66666666666666663,
+                                                          0.27450980392156865,
+                                                          1
+                                                      ],
+                                            "Transparency":  0.6,
+                                            "Size":  [
+                                                         2,
+                                                         2,
+                                                         2
+                                                     ],
+                                            "CFrame":  {
+                                                           "CFrame":  {
+                                                                          "orientation":  [
+                                                                                              [
+                                                                                                  1,
+                                                                                                  0,
+                                                                                                  0
+                                                                                              ],
+                                                                                              [
+                                                                                                  0,
+                                                                                                  1,
+                                                                                                  0
+                                                                                              ],
+                                                                                              [
+                                                                                                  0,
+                                                                                                  0,
+                                                                                                  1
+                                                                                              ]
+                                                                                          ],
+                                                                          "position":  [
+                                                                                           0,
+                                                                                           0,
+                                                                                           0
+                                                                                       ]
+                                                                      }
+                                                       },
+                                            "Shape":  "Ball"
+                                        }
+                     },
+                     {
+                         "name":  "Spike1",
+                         "className":  "Part",
+                         "properties":  {
+                                            "Anchored":  true,
+                                            "CanCollide":  false,
+                                            "CastShadow":  false,
+                                            "Material":  "Glass",
+                                            "Color":  [
+                                                          0.66666666666666663,
+                                                          0.27450980392156865,
+                                                          1
+                                                      ],
+                                            "Transparency":  0,
+                                            "Size":  [
+                                                         0.52,
+                                                         2,
+                                                         0.52
+                                                     ],
+                                            "CFrame":  {
+                                                           "CFrame":  {
+                                                                          "orientation":  [
+                                                                                              [
+                                                                                                  0.7071,
+                                                                                                  0,
+                                                                                                  0.7071
+                                                                                              ],
+                                                                                              [
+                                                                                                  0,
+                                                                                                  1,
+                                                                                                  0
+                                                                                              ],
+                                                                                              [
+                                                                                                  -0.7071,
+                                                                                                  0,
+                                                                                                  0.7071
+                                                                                              ]
+                                                                                          ],
+                                                                          "position":  [
+                                                                                           0,
+                                                                                           1,
+                                                                                           0
+                                                                                       ]
+                                                                      }
+                                                       }
+                                        }
+                     },
+                     {
+                         "name":  "Spike1Tip",
+                         "className":  "Part",
+                         "properties":  {
+                                            "Anchored":  true,
+                                            "CanCollide":  false,
+                                            "CastShadow":  false,
+                                            "Material":  "Glass",
+                                            "Color":  [
+                                                          0.66666666666666663,
+                                                          0.27450980392156865,
+                                                          1
+                                                      ],
+                                            "Transparency":  0,
+                                            "Size":  [
+                                                         0.286,
+                                                         0.7,
+                                                         0.286
+                                                     ],
+                                            "CFrame":  {
+                                                           "CFrame":  {
+                                                                          "orientation":  [
+                                                                                              [
+                                                                                                  0.7071,
+                                                                                                  0,
+                                                                                                  0.7071
+                                                                                              ],
+                                                                                              [
+                                                                                                  0,
+                                                                                                  1,
+                                                                                                  0
+                                                                                              ],
+                                                                                              [
+                                                                                                  -0.7071,
+                                                                                                  0,
+                                                                                                  0.7071
+                                                                                              ]
+                                                                                          ],
+                                                                          "position":  [
+                                                                                           0,
+                                                                                           2.25,
+                                                                                           0
+                                                                                       ]
+                                                                      }
+                                                       }
+                                        }
+                     },
+                     {
+                         "name":  "Spike2",
+                         "className":  "Part",
+                         "properties":  {
+                                            "Anchored":  true,
+                                            "CanCollide":  false,
+                                            "CastShadow":  false,
+                                            "Material":  "Neon",
+                                            "Color":  [
+                                                          0.66666666666666663,
+                                                          0.27450980392156865,
+                                                          1
+                                                      ],
+                                            "Transparency":  0,
+                                            "Size":  [
+                                                         0.52,
+                                                         1.6,
+                                                         0.52
+                                                     ],
+                                            "CFrame":  {
+                                                           "CFrame":  {
+                                                                          "orientation":  [
+                                                                                              [
+                                                                                                  0.7071,
+                                                                                                  0,
+                                                                                                  0.7071
+                                                                                              ],
+                                                                                              [
+                                                                                                  0,
+                                                                                                  -1,
+                                                                                                  0
+                                                                                              ],
+                                                                                              [
+                                                                                                  0.7071,
+                                                                                                  0,
+                                                                                                  -0.7071
+                                                                                              ]
+                                                                                          ],
+                                                                          "position":  [
+                                                                                           0,
+                                                                                           -0.8,
+                                                                                           0
+                                                                                       ]
+                                                                      }
+                                                       }
+                                        }
+                     },
+                     {
+                         "name":  "Spike2Tip",
+                         "className":  "Part",
+                         "properties":  {
+                                            "Anchored":  true,
+                                            "CanCollide":  false,
+                                            "CastShadow":  false,
+                                            "Material":  "Neon",
+                                            "Color":  [
+                                                          0.66666666666666663,
+                                                          0.27450980392156865,
+                                                          1
+                                                      ],
+                                            "Transparency":  0,
+                                            "Size":  [
+                                                         0.286,
+                                                         0.56,
+                                                         0.286
+                                                     ],
+                                            "CFrame":  {
+                                                           "CFrame":  {
+                                                                          "orientation":  [
+                                                                                              [
+                                                                                                  0.7071,
+                                                                                                  0,
+                                                                                                  0.7071
+                                                                                              ],
+                                                                                              [
+                                                                                                  0,
+                                                                                                  -1,
+                                                                                                  0
+                                                                                              ],
+                                                                                              [
+                                                                                                  0.7071,
+                                                                                                  0,
+                                                                                                  -0.7071
+                                                                                              ]
+                                                                                          ],
+                                                                          "position":  [
+                                                                                           0,
+                                                                                           -1.78,
+                                                                                           0
+                                                                                       ]
+                                                                      }
+                                                       }
+                                        }
+                     },
+                     {
+                         "name":  "Spike3",
+                         "className":  "Part",
+                         "properties":  {
+                                            "Anchored":  true,
+                                            "CanCollide":  false,
+                                            "CastShadow":  false,
+                                            "Material":  "Glass",
+                                            "Color":  [
+                                                          0.66666666666666663,
+                                                          0.27450980392156865,
+                                                          1
+                                                      ],
+                                            "Transparency":  0,
+                                            "Size":  [
+                                                         0.52,
+                                                         1.6,
+                                                         0.52
+                                                     ],
+                                            "CFrame":  {
+                                                           "CFrame":  {
+                                                                          "orientation":  [
+                                                                                              [
+                                                                                                  0.7071,
+                                                                                                  0,
+                                                                                                  0.7071
+                                                                                              ],
+                                                                                              [
+                                                                                                  0.6124,
+                                                                                                  0.5,
+                                                                                                  -0.6124
+                                                                                              ],
+                                                                                              [
+                                                                                                  -0.3536,
+                                                                                                  0.866,
+                                                                                                  0.3536
+                                                                                              ]
+                                                                                          ],
+                                                                          "position":  [
+                                                                                           0,
+                                                                                           0.4,
+                                                                                           0.6928
+                                                                                       ]
+                                                                      }
+                                                       }
+                                        }
+                     },
+                     {
+                         "name":  "Spike3Tip",
+                         "className":  "Part",
+                         "properties":  {
+                                            "Anchored":  true,
+                                            "CanCollide":  false,
+                                            "CastShadow":  false,
+                                            "Material":  "Glass",
+                                            "Color":  [
+                                                          0.66666666666666663,
+                                                          0.27450980392156865,
+                                                          1
+                                                      ],
+                                            "Transparency":  0,
+                                            "Size":  [
+                                                         0.286,
+                                                         0.56,
+                                                         0.286
+                                                     ],
+                                            "CFrame":  {
+                                                           "CFrame":  {
+                                                                          "orientation":  [
+                                                                                              [
+                                                                                                  0.7071,
+                                                                                                  0,
+                                                                                                  0.7071
+                                                                                              ],
+                                                                                              [
+                                                                                                  0.6124,
+                                                                                                  0.5,
+                                                                                                  -0.6124
+                                                                                              ],
+                                                                                              [
+                                                                                                  -0.3536,
+                                                                                                  0.866,
+                                                                                                  0.3536
+                                                                                              ]
+                                                                                          ],
+                                                                          "position":  [
+                                                                                           0,
+                                                                                           0.89,
+                                                                                           1.5415
+                                                                                       ]
+                                                                      }
+                                                       }
+                                        }
+                     },
+                     {
+                         "name":  "Spike4",
+                         "className":  "Part",
+                         "properties":  {
+                                            "Anchored":  true,
+                                            "CanCollide":  false,
+                                            "CastShadow":  false,
+                                            "Material":  "Neon",
+                                            "Color":  [
+                                                          0.66666666666666663,
+                                                          0.27450980392156865,
+                                                          1
+                                                      ],
+                                            "Transparency":  0,
+                                            "Size":  [
+                                                         0.52,
+                                                         1.6,
+                                                         0.52
+                                                     ],
+                                            "CFrame":  {
+                                                           "CFrame":  {
+                                                                          "orientation":  [
+                                                                                              [
+                                                                                                  -0.3536,
+                                                                                                  0.866,
+                                                                                                  0.3536
+                                                                                              ],
+                                                                                              [
+                                                                                                  0.6124,
+                                                                                                  0.5,
+                                                                                                  -0.6124
+                                                                                              ],
+                                                                                              [
+                                                                                                  -0.7071,
+                                                                                                  0,
+                                                                                                  -0.7071
+                                                                                              ]
+                                                                                          ],
+                                                                          "position":  [
+                                                                                           0.6928,
+                                                                                           0.4,
+                                                                                           0
+                                                                                       ]
+                                                                      }
+                                                       }
+                                        }
+                     },
+                     {
+                         "name":  "Spike4Tip",
+                         "className":  "Part",
+                         "properties":  {
+                                            "Anchored":  true,
+                                            "CanCollide":  false,
+                                            "CastShadow":  false,
+                                            "Material":  "Neon",
+                                            "Color":  [
+                                                          0.66666666666666663,
+                                                          0.27450980392156865,
+                                                          1
+                                                      ],
+                                            "Transparency":  0,
+                                            "Size":  [
+                                                         0.286,
+                                                         0.56,
+                                                         0.286
+                                                     ],
+                                            "CFrame":  {
+                                                           "CFrame":  {
+                                                                          "orientation":  [
+                                                                                              [
+                                                                                                  -0.3536,
+                                                                                                  0.866,
+                                                                                                  0.3536
+                                                                                              ],
+                                                                                              [
+                                                                                                  0.6124,
+                                                                                                  0.5,
+                                                                                                  -0.6124
+                                                                                              ],
+                                                                                              [
+                                                                                                  -0.7071,
+                                                                                                  0,
+                                                                                                  -0.7071
+                                                                                              ]
+                                                                                          ],
+                                                                          "position":  [
+                                                                                           1.5415,
+                                                                                           0.89,
+                                                                                           0
+                                                                                       ]
+                                                                      }
+                                                       }
+                                        }
+                     },
+                     {
+                         "name":  "Spike5",
+                         "className":  "Part",
+                         "properties":  {
+                                            "Anchored":  true,
+                                            "CanCollide":  false,
+                                            "CastShadow":  false,
+                                            "Material":  "Glass",
+                                            "Color":  [
+                                                          0.66666666666666663,
+                                                          0.27450980392156865,
+                                                          1
+                                                      ],
+                                            "Transparency":  0,
+                                            "Size":  [
+                                                         0.52,
+                                                         1.6,
+                                                         0.52
+                                                     ],
+                                            "CFrame":  {
+                                                           "CFrame":  {
+                                                                          "orientation":  [
+                                                                                              [
+                                                                                                  -0.7071,
+                                                                                                  0,
+                                                                                                  -0.7071
+                                                                                              ],
+                                                                                              [
+                                                                                                  0.6124,
+                                                                                                  0.5,
+                                                                                                  -0.6124
+                                                                                              ],
+                                                                                              [
+                                                                                                  0.3536,
+                                                                                                  -0.866,
+                                                                                                  -0.3536
+                                                                                              ]
+                                                                                          ],
+                                                                          "position":  [
+                                                                                           0,
+                                                                                           0.4,
+                                                                                           -0.6928
+                                                                                       ]
+                                                                      }
+                                                       }
+                                        }
+                     },
+                     {
+                         "name":  "Spike5Tip",
+                         "className":  "Part",
+                         "properties":  {
+                                            "Anchored":  true,
+                                            "CanCollide":  false,
+                                            "CastShadow":  false,
+                                            "Material":  "Glass",
+                                            "Color":  [
+                                                          0.66666666666666663,
+                                                          0.27450980392156865,
+                                                          1
+                                                      ],
+                                            "Transparency":  0,
+                                            "Size":  [
+                                                         0.286,
+                                                         0.56,
+                                                         0.286
+                                                     ],
+                                            "CFrame":  {
+                                                           "CFrame":  {
+                                                                          "orientation":  [
+                                                                                              [
+                                                                                                  -0.7071,
+                                                                                                  0,
+                                                                                                  -0.7071
+                                                                                              ],
+                                                                                              [
+                                                                                                  0.6124,
+                                                                                                  0.5,
+                                                                                                  -0.6124
+                                                                                              ],
+                                                                                              [
+                                                                                                  0.3536,
+                                                                                                  -0.866,
+                                                                                                  -0.3536
+                                                                                              ]
+                                                                                          ],
+                                                                          "position":  [
+                                                                                           0,
+                                                                                           0.89,
+                                                                                           -1.5415
+                                                                                       ]
+                                                                      }
+                                                       }
+                                        }
+                     },
+                     {
+                         "name":  "Spike6",
+                         "className":  "Part",
+                         "properties":  {
+                                            "Anchored":  true,
+                                            "CanCollide":  false,
+                                            "CastShadow":  false,
+                                            "Material":  "Neon",
+                                            "Color":  [
+                                                          0.66666666666666663,
+                                                          0.27450980392156865,
+                                                          1
+                                                      ],
+                                            "Transparency":  0,
+                                            "Size":  [
+                                                         0.52,
+                                                         1.6,
+                                                         0.52
+                                                     ],
+                                            "CFrame":  {
+                                                           "CFrame":  {
+                                                                          "orientation":  [
+                                                                                              [
+                                                                                                  0.3536,
+                                                                                                  -0.866,
+                                                                                                  -0.3536
+                                                                                              ],
+                                                                                              [
+                                                                                                  0.6124,
+                                                                                                  0.5,
+                                                                                                  -0.6124
+                                                                                              ],
+                                                                                              [
+                                                                                                  0.7071,
+                                                                                                  0,
+                                                                                                  0.7071
+                                                                                              ]
+                                                                                          ],
+                                                                          "position":  [
+                                                                                           -0.6928,
+                                                                                           0.4,
+                                                                                           0
+                                                                                       ]
+                                                                      }
+                                                       }
+                                        }
+                     },
+                     {
+                         "name":  "Spike6Tip",
+                         "className":  "Part",
+                         "properties":  {
+                                            "Anchored":  true,
+                                            "CanCollide":  false,
+                                            "CastShadow":  false,
+                                            "Material":  "Neon",
+                                            "Color":  [
+                                                          0.66666666666666663,
+                                                          0.27450980392156865,
+                                                          1
+                                                      ],
+                                            "Transparency":  0,
+                                            "Size":  [
+                                                         0.286,
+                                                         0.56,
+                                                         0.286
+                                                     ],
+                                            "CFrame":  {
+                                                           "CFrame":  {
+                                                                          "orientation":  [
+                                                                                              [
+                                                                                                  0.3536,
+                                                                                                  -0.866,
+                                                                                                  -0.3536
+                                                                                              ],
+                                                                                              [
+                                                                                                  0.6124,
+                                                                                                  0.5,
+                                                                                                  -0.6124
+                                                                                              ],
+                                                                                              [
+                                                                                                  0.7071,
+                                                                                                  0,
+                                                                                                  0.7071
+                                                                                              ]
+                                                                                          ],
+                                                                          "position":  [
+                                                                                           -1.5415,
+                                                                                           0.89,
+                                                                                           0
+                                                                                       ]
+                                                                      }
+                                                       }
+                                        }
+                     },
+                     {
+                         "name":  "Spike7",
+                         "className":  "Part",
+                         "properties":  {
+                                            "Anchored":  true,
+                                            "CanCollide":  false,
+                                            "CastShadow":  false,
+                                            "Material":  "Glass",
+                                            "Color":  [
+                                                          0.66666666666666663,
+                                                          0.27450980392156865,
+                                                          1
+                                                      ],
+                                            "Transparency":  0,
+                                            "Size":  [
+                                                         0.52,
+                                                         1.6,
+                                                         0.52
+                                                     ],
+                                            "CFrame":  {
+                                                           "CFrame":  {
+                                                                          "orientation":  [
+                                                                                              [
+                                                                                                  0.75,
+                                                                                                  0.6124,
+                                                                                                  0.25
+                                                                                              ],
+                                                                                              [
+                                                                                                  0.6124,
+                                                                                                  -0.5,
+                                                                                                  -0.6124
+                                                                                              ],
+                                                                                              [
+                                                                                                  -0.25,
+                                                                                                  0.6124,
+                                                                                                  -0.75
+                                                                                              ]
+                                                                                          ],
+                                                                          "position":  [
+                                                                                           0.4899,
+                                                                                           -0.4,
+                                                                                           0.4899
+                                                                                       ]
+                                                                      }
+                                                       }
+                                        }
+                     },
+                     {
+                         "name":  "Spike7Tip",
+                         "className":  "Part",
+                         "properties":  {
+                                            "Anchored":  true,
+                                            "CanCollide":  false,
+                                            "CastShadow":  false,
+                                            "Material":  "Glass",
+                                            "Color":  [
+                                                          0.66666666666666663,
+                                                          0.27450980392156865,
+                                                          1
+                                                      ],
+                                            "Transparency":  0,
+                                            "Size":  [
+                                                         0.286,
+                                                         0.56,
+                                                         0.286
+                                                     ],
+                                            "CFrame":  {
+                                                           "CFrame":  {
+                                                                          "orientation":  [
+                                                                                              [
+                                                                                                  0.75,
+                                                                                                  0.6124,
+                                                                                                  0.25
+                                                                                              ],
+                                                                                              [
+                                                                                                  0.6124,
+                                                                                                  -0.5,
+                                                                                                  -0.6124
+                                                                                              ],
+                                                                                              [
+                                                                                                  -0.25,
+                                                                                                  0.6124,
+                                                                                                  -0.75
+                                                                                              ]
+                                                                                          ],
+                                                                          "position":  [
+                                                                                           1.09,
+                                                                                           -0.89,
+                                                                                           1.09
+                                                                                       ]
+                                                                      }
+                                                       }
+                                        }
+                     },
+                     {
+                         "name":  "Spike8",
+                         "className":  "Part",
+                         "properties":  {
+                                            "Anchored":  true,
+                                            "CanCollide":  false,
+                                            "CastShadow":  false,
+                                            "Material":  "Neon",
+                                            "Color":  [
+                                                          0.66666666666666663,
+                                                          0.27450980392156865,
+                                                          1
+                                                      ],
+                                            "Transparency":  0,
+                                            "Size":  [
+                                                         0.52,
+                                                         1.6,
+                                                         0.52
+                                                     ],
+                                            "CFrame":  {
+                                                           "CFrame":  {
+                                                                          "orientation":  [
+                                                                                              [
+                                                                                                  -0.25,
+                                                                                                  0.6124,
+                                                                                                  -0.75
+                                                                                              ],
+                                                                                              [
+                                                                                                  0.6124,
+                                                                                                  -0.5,
+                                                                                                  -0.6124
+                                                                                              ],
+                                                                                              [
+                                                                                                  -0.75,
+                                                                                                  -0.6124,
+                                                                                                  -0.25
+                                                                                              ]
+                                                                                          ],
+                                                                          "position":  [
+                                                                                           0.4899,
+                                                                                           -0.4,
+                                                                                           -0.4899
+                                                                                       ]
+                                                                      }
+                                                       }
+                                        }
+                     },
+                     {
+                         "name":  "Spike8Tip",
+                         "className":  "Part",
+                         "properties":  {
+                                            "Anchored":  true,
+                                            "CanCollide":  false,
+                                            "CastShadow":  false,
+                                            "Material":  "Neon",
+                                            "Color":  [
+                                                          0.66666666666666663,
+                                                          0.27450980392156865,
+                                                          1
+                                                      ],
+                                            "Transparency":  0,
+                                            "Size":  [
+                                                         0.286,
+                                                         0.56,
+                                                         0.286
+                                                     ],
+                                            "CFrame":  {
+                                                           "CFrame":  {
+                                                                          "orientation":  [
+                                                                                              [
+                                                                                                  -0.25,
+                                                                                                  0.6124,
+                                                                                                  -0.75
+                                                                                              ],
+                                                                                              [
+                                                                                                  0.6124,
+                                                                                                  -0.5,
+                                                                                                  -0.6124
+                                                                                              ],
+                                                                                              [
+                                                                                                  -0.75,
+                                                                                                  -0.6124,
+                                                                                                  -0.25
+                                                                                              ]
+                                                                                          ],
+                                                                          "position":  [
+                                                                                           1.09,
+                                                                                           -0.89,
+                                                                                           -1.09
+                                                                                       ]
+                                                                      }
+                                                       }
+                                        }
+                     },
+                     {
+                         "name":  "Spike9",
+                         "className":  "Part",
+                         "properties":  {
+                                            "Anchored":  true,
+                                            "CanCollide":  false,
+                                            "CastShadow":  false,
+                                            "Material":  "Glass",
+                                            "Color":  [
+                                                          0.66666666666666663,
+                                                          0.27450980392156865,
+                                                          1
+                                                      ],
+                                            "Transparency":  0,
+                                            "Size":  [
+                                                         0.52,
+                                                         1.6,
+                                                         0.52
+                                                     ],
+                                            "CFrame":  {
+                                                           "CFrame":  {
+                                                                          "orientation":  [
+                                                                                              [
+                                                                                                  -0.75,
+                                                                                                  -0.6124,
+                                                                                                  -0.25
+                                                                                              ],
+                                                                                              [
+                                                                                                  0.6124,
+                                                                                                  -0.5,
+                                                                                                  -0.6124
+                                                                                              ],
+                                                                                              [
+                                                                                                  0.25,
+                                                                                                  -0.6124,
+                                                                                                  0.75
+                                                                                              ]
+                                                                                          ],
+                                                                          "position":  [
+                                                                                           -0.4899,
+                                                                                           -0.4,
+                                                                                           -0.4899
+                                                                                       ]
+                                                                      }
+                                                       }
+                                        }
+                     },
+                     {
+                         "name":  "Spike9Tip",
+                         "className":  "Part",
+                         "properties":  {
+                                            "Anchored":  true,
+                                            "CanCollide":  false,
+                                            "CastShadow":  false,
+                                            "Material":  "Glass",
+                                            "Color":  [
+                                                          0.66666666666666663,
+                                                          0.27450980392156865,
+                                                          1
+                                                      ],
+                                            "Transparency":  0,
+                                            "Size":  [
+                                                         0.286,
+                                                         0.56,
+                                                         0.286
+                                                     ],
+                                            "CFrame":  {
+                                                           "CFrame":  {
+                                                                          "orientation":  [
+                                                                                              [
+                                                                                                  -0.75,
+                                                                                                  -0.6124,
+                                                                                                  -0.25
+                                                                                              ],
+                                                                                              [
+                                                                                                  0.6124,
+                                                                                                  -0.5,
+                                                                                                  -0.6124
+                                                                                              ],
+                                                                                              [
+                                                                                                  0.25,
+                                                                                                  -0.6124,
+                                                                                                  0.75
+                                                                                              ]
+                                                                                          ],
+                                                                          "position":  [
+                                                                                           -1.09,
+                                                                                           -0.89,
+                                                                                           -1.09
+                                                                                       ]
+                                                                      }
+                                                       }
+                                        }
+                     },
+                     {
+                         "name":  "Spike10",
+                         "className":  "Part",
+                         "properties":  {
+                                            "Anchored":  true,
+                                            "CanCollide":  false,
+                                            "CastShadow":  false,
+                                            "Material":  "Neon",
+                                            "Color":  [
+                                                          0.66666666666666663,
+                                                          0.27450980392156865,
+                                                          1
+                                                      ],
+                                            "Transparency":  0,
+                                            "Size":  [
+                                                         0.52,
+                                                         1.6,
+                                                         0.52
+                                                     ],
+                                            "CFrame":  {
+                                                           "CFrame":  {
+                                                                          "orientation":  [
+                                                                                              [
+                                                                                                  0.25,
+                                                                                                  -0.6124,
+                                                                                                  0.75
+                                                                                              ],
+                                                                                              [
+                                                                                                  0.6124,
+                                                                                                  -0.5,
+                                                                                                  -0.6124
+                                                                                              ],
+                                                                                              [
+                                                                                                  0.75,
+                                                                                                  0.6124,
+                                                                                                  0.25
+                                                                                              ]
+                                                                                          ],
+                                                                          "position":  [
+                                                                                           -0.4899,
+                                                                                           -0.4,
+                                                                                           0.4899
+                                                                                       ]
+                                                                      }
+                                                       }
+                                        }
+                     },
+                     {
+                         "name":  "Spike10Tip",
+                         "className":  "Part",
+                         "properties":  {
+                                            "Anchored":  true,
+                                            "CanCollide":  false,
+                                            "CastShadow":  false,
+                                            "Material":  "Neon",
+                                            "Color":  [
+                                                          0.66666666666666663,
+                                                          0.27450980392156865,
+                                                          1
+                                                      ],
+                                            "Transparency":  0,
+                                            "Size":  [
+                                                         0.286,
+                                                         0.56,
+                                                         0.286
+                                                     ],
+                                            "CFrame":  {
+                                                           "CFrame":  {
+                                                                          "orientation":  [
+                                                                                              [
+                                                                                                  0.25,
+                                                                                                  -0.6124,
+                                                                                                  0.75
+                                                                                              ],
+                                                                                              [
+                                                                                                  0.6124,
+                                                                                                  -0.5,
+                                                                                                  -0.6124
+                                                                                              ],
+                                                                                              [
+                                                                                                  0.75,
+                                                                                                  0.6124,
+                                                                                                  0.25
+                                                                                              ]
+                                                                                          ],
+                                                                          "position":  [
+                                                                                           -1.09,
+                                                                                           -0.89,
+                                                                                           1.09
+                                                                                       ]
+                                                                      }
+                                                       }
+                                        }
+                     }
+                 ]
+}
