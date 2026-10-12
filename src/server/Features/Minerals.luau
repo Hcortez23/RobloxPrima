@@ -14,7 +14,8 @@ local explosionRemote, lootFolder
 
 local function spawnLoot(pos: Vector3, rarity: string, color: Color3)
 	local p = Instance.new("Part")
-	p.Size = Vector3.new(0.7, 1.1, 0.7)
+	p.Shape = Enum.PartType.Ball -- placeholder genérico; para usar un modelo del Marketplace, reemplazar solo esta función
+	p.Size = Vector3.one * 0.9
 	p.Material, p.Color = Enum.Material.Neon, color
 	p.CFrame = CFrame.new(pos) * CFrame.Angles(math.random() * 6, math.random() * 6, math.random() * 6)
 	p:SetAttribute("Rarity", rarity)

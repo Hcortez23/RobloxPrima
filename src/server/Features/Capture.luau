@@ -1,28 +1,29 @@
--- Tocar un material suelto (Loot) lo captura: se destruye y suma su valor al atributo "Carried" del jugador
--- (lo que lleva en el run; Extraction lo convertirá en materiales guardados).
--- ponytail: Touched, suficiente para prototipo; si se pierden capturas a alta velocidad, usar GetPartBoundsInRadius.
+-- Recoger: cada Loot (material suelto) lleva un ProximityPrompt (E). Al activarlo, pasa al inventario del jugador.
 local CollectionService = game:GetService("CollectionService")
-local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Minerals = require(ReplicatedStorage.Shared.Config.Minerals)
+local Inventory = require(script.Parent.Inventory)
 
-local function watch(mineral: Instance)
-	if not mineral:IsA("BasePart") then return end
-	mineral.Touched:Connect(function(other)
-		if not mineral:GetAttribute("Free") or not mineral.Parent then return end
-		local player = Players:GetPlayerFromCharacter(other.Parent)
-		if not player then return end
-		mineral:SetAttribute("Free", nil) -- evita doble captura
-		local value = Minerals[mineral:GetAttribute("Rarity")].Value
-		player:SetAttribute("Carried", (player:GetAttribute("Carried") or 0) + value)
-		mineral:Destroy()
+local function watch(loot: Instance)
+	if not loot:IsA("BasePart") then return end
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.ActionText = "Recoger"
+	prompt.ObjectText = loot:GetAttribute("Rarity")
+	prompt.KeyboardKeyCode = Enum.KeyCode.E
+	prompt.HoldDuration = 0
+	prompt.MaxActivationDistance = 10
+	prompt.RequiresLineOfSight = false -- el Loot flota, no debe depender de la línea de vista
+	prompt.Parent = loot
+	prompt.Triggered:Connect(function(player)
+		if not loot:GetAttribute("Free") then return end -- evita recogerlo dos veces
+		loot:SetAttribute("Free", nil)
+		Inventory.Add(player, loot:GetAttribute("Rarity"), 1)
+		loot:Destroy()
 	end)
 end
 
 return {
 	Start = function()
 		CollectionService:GetInstanceAddedSignal("Loot"):Connect(watch)
-		for _, m in CollectionService:GetTagged("Loot") do watch(m) end
+		for _, l in CollectionService:GetTagged("Loot") do watch(l) end
 	end,
 }
