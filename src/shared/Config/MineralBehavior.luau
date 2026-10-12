@@ -9,4 +9,8 @@ return {
 	FloatTime = 6, -- segundos flotando (ventana para capturarlo en el aire) antes de caer
 	Lifetime = 300, -- segundos antes de desaparecer si nadie lo recoge (5 min)
 	MaxLoot = 300, -- tope de objetos sueltos en el mundo; al pasarse se borra el más viejo
+	-- Objetos puestos a mano en Workspace que cuentan como mineral: nombre -> rareza y vida.
+	WorkspaceMinerals = {
+		["super ore"] = { Rarity = "Legendario", Health = 100 },
+	},
 }
