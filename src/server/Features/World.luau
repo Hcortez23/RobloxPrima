@@ -334,6 +334,7 @@ end
 
 return {
 	Start = function()
+		workspace.FallenPartsDestroyHeight = -Config.Depth - 200 -- si no, Roblox borra el núcleo (y a quien caiga) bajo y = -500
 		Players.CharacterAutoLoads = false
 
 		local t0 = os.clock()

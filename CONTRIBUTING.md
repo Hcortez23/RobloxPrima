@@ -65,7 +65,7 @@ Para que no choque con el resto:
 - Cambiar el arte no toca esta lógica.
 
 ## Mundo
-- `server/Features/World.luau` + `shared/Config/World.luau`: meseta de 768×768 con **un pozo estrecho y vertical** (radio 42) de 320 de profundidad hasta el núcleo, hecho con Terrain por código (no se guarda en el repo). Nadie debería bajar por el pozo: es un vistazo al **núcleo** (esfera incandescente `Core` con luz y brasas). Caerse por ahí matará más adelante (pendiente; `Core` tiene el atributo `Core`).
+- `server/Features/World.luau` + `shared/Config/World.luau`: meseta de 768×768 con **un pozo estrecho y vertical** (radio 42) de 800 de profundidad hasta el núcleo, hecho con Terrain por código (no se guarda en el repo). Nadie debería bajar por el pozo: es un vistazo al **núcleo** (esfera incandescente `Core` con luz y brasas). Caerse por ahí matará más adelante (pendiente; `Core` tiene el atributo `Core`).
 - **Capas de roca** bajo la meseta con cuevas naturales. **Entradas** repartidas: 10 rampas inclinadas que se caminan y 8 pozos verticales.
 - **Iluminación:** cristales luminosos en las cuevas (un color por capa); los minerales también brillan.
 - **Reinicio diario:** la semilla es la fecha UTC, así que cada servidor genera el mismo mundo ese día. `Seed = <número>` en el config fija un mundo para depurar.
