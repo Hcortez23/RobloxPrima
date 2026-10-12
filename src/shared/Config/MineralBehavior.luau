@@ -6,5 +6,7 @@ return {
 	DropKick = 32, -- impulso de salida de los materiales
 	PushStrength = 28, -- empuje de la explosión a materiales ya sueltos cercanos
 	GravityCancel = 0.8, -- 0 = cae normal, 1 = flota; más alto = más tiempo en el aire para capturarlo
-	Lifetime = 10, -- segundos antes de desaparecer si nadie lo captura
+	FloatTime = 6, -- segundos flotando (ventana para capturarlo en el aire) antes de caer
+	Lifetime = 300, -- segundos antes de desaparecer si nadie lo recoge (5 min)
+	MaxLoot = 300, -- tope de objetos sueltos en el mundo; al pasarse se borra el más viejo
 }

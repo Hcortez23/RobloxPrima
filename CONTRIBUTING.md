@@ -57,9 +57,9 @@ Para que no choque con el resto:
 
 ## Minerales
 - **Mineral** = `Part` con tag `Mineral` y atributo `Rarity` (ver `Config/Minerals.luau`). Puede haber uno solo o varios juntos.
-- `server/Features/Minerals.luau`: disparar a un mineral lo hace **explotar**: desaparece, suelta materiales nuevos (**Loot**, otro objeto distinto, tag `Loot`) y detona en cadena a los minerales dentro del radio. Números en `Config/MineralBehavior.luau`.
+- `server/Features/Minerals.luau`: disparar a un mineral lo hace **explotar**: desaparece, suelta materiales nuevos (**Loot**, otro objeto distinto, tag `Loot`; flota 6 s, vive 5 min, tope de 300 en el mundo y se ancla al asentarse) y detona en cadena a los minerales dentro del radio. Números en `Config/MineralBehavior.luau`.
 - `client/Features/Minerals.luau`: efectos de la explosión (destello, onda, chispas, luz, temblor de cámara).
 - `server/Features/Capture.luau`: cada Loot lleva un ProximityPrompt (`E`); al activarlo pasa al inventario y desaparece del mundo.
-- `server/Features/Inventory.luau`: `Inventory.Add(player, item, n)` y `Count`. Guarda en atributos `Inv_<Rareza>` del jugador (aún sin DataStore). `client/Features/Inventory.luau` es solo el HUD.
+- `server/Features/Inventory.luau`: mochila. Datos en atributos `Inv_<Rareza>` del jugador (fuente de verdad); la barra de Roblox es la vista: un Tool por material, apilado ("Raro x3"). API: `Inventory.Add(player, item, n)`, `Count`. Aún sin DataStore.
 - Fracture puede suscribirse a `require(script.Parent.Minerals).Exploded:Connect(function(position, radius) end)` para romper el escenario cercano a la explosión.
 - Cambiar el arte no toca esta lógica.
