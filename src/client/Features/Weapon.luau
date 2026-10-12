@@ -1,4 +1,4 @@
--- 1ª persona: mouse fijo al centro con la mira ahí. 3ª persona: mouse libre y la mira sigue al cursor.
+-- Mira fija al centro de la pantalla (1ª y 3ª persona, estilo Fortnite) mientras hay arma o gancho en la mano.
 -- Mantener clic izquierdo dispara el arma equipada; el rayo real sale de la boca del arma (lo traza el
 -- servidor) hacia el punto que cubre la mira.
 local Debris = game:GetService("Debris")
@@ -62,10 +62,17 @@ return {
 		if player.Character then watchCrosshair(player.Character) end
 		player.CharacterAdded:Connect(watchCrosshair)
 
-		-- 1ª persona: mouse fijo al centro y oculto. 3ª persona: mouse libre; con mira se oculta el cursor
-		-- del sistema porque la mira lo sigue, sin mira se ve el cursor normal.
+		-- Con arma/gancho en la mano (mira visible), en 1ª y 3ª persona: mouse fijo al centro y la mira siempre
+		-- en el centro, como en Fortnite; en 3ª el personaje mira hacia donde apunta la cámara.
+		-- Sin arma en 3ª persona: mouse libre y cursor normal.
 		RunService.RenderStepped:Connect(function()
-			if isFirstPerson() then
+			local cam = workspace.CurrentCamera
+			local char = player.Character
+			local hum = char and char:FindFirstChildOfClass("Humanoid")
+			local root = char and char:FindFirstChild("HumanoidRootPart")
+			local first, armed = isFirstPerson(), crosshair.Enabled
+
+			if first or armed then
 				UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
 				UserInputService.MouseIconEnabled = false
 			else
@@ -73,10 +80,18 @@ return {
 				if not UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
 					UserInputService.MouseBehavior = Enum.MouseBehavior.Default
 				end
-				UserInputService.MouseIconEnabled = not crosshair.Enabled
+				UserInputService.MouseIconEnabled = true
 			end
-			local mouse = UserInputService:GetMouseLocation()
-			crosshairCenter.Position = UDim2.fromOffset(mouse.X, mouse.Y)
+			crosshairCenter.Position = UDim2.fromOffset(cam.ViewportSize.X / 2, cam.ViewportSize.Y / 2)
+
+			if hum and root and hum.Health > 0 then
+				local turn = armed and not first
+				hum.AutoRotate = not turn
+				local look = cam.CFrame.LookVector
+				if turn and Vector3.new(look.X, 0, look.Z).Magnitude > 0.01 then
+					root.CFrame = CFrame.lookAt(root.Position, root.Position + Vector3.new(look.X, 0, look.Z))
+				end
+			end
 		end)
 
 		-- solo la primera vez por vida: al cambiar a otro slot el arma vuelve a la mochila y no debe re-equiparse
@@ -99,7 +114,7 @@ return {
 			local char = player.Character
 			if not (char and char:FindFirstChild(Config.ToolName)) then return end
 			local cam = workspace.CurrentCamera
-			local mouse = UserInputService:GetMouseLocation() -- en 1ª persona es el centro
+			local mouse = cam.ViewportSize / 2 -- la mira siempre está en el centro
 			local ray = cam:ViewportPointToRay(mouse.X, mouse.Y)
 			local params = RaycastParams.new()
 			params.FilterType = Enum.RaycastFilterType.Exclude

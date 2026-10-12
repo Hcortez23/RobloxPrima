@@ -198,7 +198,11 @@ local function startGrapplePose(character: Model, root: BasePart, getDirection: 
 		goal = 0
 	end
 end
+-- Suelta el gancho del personaje actual (lo asigna setupGrapple); el doble salto lo usa para saltar desde la cuerda.
+local activeGrappleRelease: (() -> ())? = nil
+
 -- Doble salto: un salto extra en el aire, se recarga al tocar el suelo.
+-- Colgado del gancho siempre hay un salto disponible: suelta la cuerda y lanza al personaje.
 local function setupDoubleJump(character: Model)
 	local humanoid = character:WaitForChild("Humanoid") :: Humanoid
 	local root = character:WaitForChild("HumanoidRootPart") :: BasePart
@@ -222,11 +226,19 @@ local function setupDoubleJump(character: Model)
 	end)
 
 	local jumpConnection = UserInputService.JumpRequest:Connect(function()
-		if not canDoubleJump or hasDoubleJumped or humanoid.Health <= 0 then
+		if humanoid.Health <= 0 then
 			return
 		end
-		if os.clock() - lastDoubleJump < Config.DoubleJumpCooldown then
-			return
+		local releaseGrapple = if character:GetAttribute("Grappling") then activeGrappleRelease else nil
+		if not releaseGrapple then
+			if not canDoubleJump or hasDoubleJumped then
+				return
+			end
+			if os.clock() - lastDoubleJump < Config.DoubleJumpCooldown then
+				return
+			end
+		else
+			releaseGrapple()
 		end
 		hasDoubleJumped = true
 		lastDoubleJump = os.clock()
@@ -398,7 +410,7 @@ end
 local function buildGrappleTool(): (Tool, Attachment, { BasePart })
 	local tool = Instance.new("Tool")
 	tool.Name = "Gancho"
-	tool.ToolTip = "Mantén click izquierdo apuntando a una estructura"
+	tool.ToolTip = "Click apuntando a una estructura para enganchar; click de nuevo para soltar; salto para impulsarte"
 	tool.CanBeDropped = false
 	tool:SetAttribute("Crosshair", true) -- Weapon muestra la mira mientras está equipado
 	tool.TextureId = Config.GrappleIconId -- ícono de la barra (assets/icons/gancho.png subido a Roblox)
@@ -484,9 +496,9 @@ local function poseHook(parts: { BasePart }, cframe: CFrame, open: number)
 		parts[i].CFrame = cframe * piece.offset
 	end
 end
--- Gancho: herramienta en la barra; con ella equipada, mantener click izquierdo apuntando a una estructura
--- dispara la garra: vuela hasta el punto, se cierra al agarrarse y entonces jala al personaje hacia ahí.
--- Al soltar (o al llegar) se suelta y se conserva el impulso.
+-- Gancho: herramienta en la barra; con ella equipada, un click apuntando a una estructura dispara la garra:
+-- vuela hasta el punto, se cierra al agarrarse y entonces jala al personaje hacia ahí.
+-- Se suelta al llegar, con otro click, o saltando (doble salto); se conserva el impulso.
 local function setupGrapple(character: Model)
 	local humanoid = character:WaitForChild("Humanoid") :: Humanoid
 	local root = character:WaitForChild("HumanoidRootPart") :: BasePart
@@ -625,8 +637,15 @@ local function setupGrapple(character: Model)
 	end
 
 	-- La herramienta se crea en el cliente para el prototipo; la mochila se vacía sola al reaparecer.
-	tool.Activated:Connect(fire)
-	tool.Deactivated:Connect(release)
+	-- Un click engancha (no hay que mantenerlo); otro click con el gancho puesto lo suelta.
+	activeGrappleRelease = release
+	tool.Activated:Connect(function()
+		if hook then
+			release()
+		else
+			fire()
+		end
+	end)
 	tool.Unequipped:Connect(release)
 	tool.Parent = player:WaitForChild("Backpack")
 
