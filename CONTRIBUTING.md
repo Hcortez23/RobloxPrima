@@ -43,3 +43,14 @@ Para que no choque con el resto:
 - El gancho dispara un raycast contra `Workspace`; los fragmentos solo necesitan ser `BasePart`s, así Capture los detecta por su lado sin que Movement sepa que existen.
 - Capture (otro archivo) detecta fragmentos por contacto con el personaje; Movement solo mueve al personaje.
 - Si una feature necesita saber algo de Movement (ej. "está en dash"), se expone con un atributo en el personaje (`character:SetAttribute("Dashing", true)`) en vez de requerir el módulo.
+
+## Armas y cámara
+- `Camera` (client/Features/Camera.luau): 1ª persona por defecto, rueda del ratón para pasar a 3ª.
+- `Weapon` (server + client + shared/Config/Weapon.luau): hitscan, mantener clic para disparar. No conoce a Fracture.
+- Fracture se suscribe al impacto desde su archivo de servidor:
+  ```lua
+  local Weapon = require(script.Parent.Weapon)
+  Weapon.Hit:Connect(function(player, position, normal, instance)
+      -- si instance tiene el tag "Fracturable", soltar celdas cerca de position
+  end)
+  ```
