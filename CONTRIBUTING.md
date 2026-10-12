@@ -46,7 +46,7 @@ Para que no choque con el resto:
 
 ## Armas y cámara
 - `Camera` (client/Features/Camera.luau): 1ª persona por defecto, rueda del ratón para pasar a 3ª.
-- `Weapon` (server + client + shared/Config/Weapon.luau): hitscan, mantener clic para disparar. No conoce a Fracture.
+- `Weapon` (server + client + shared/Config/Weapon.luau): hitscan desde la boca del arma (Tool "Rifle" en la mano, placeholder de Parts), mira al centro, mantener clic para disparar. No conoce a Fracture.
 - Fracture se suscribe al impacto desde su archivo de servidor:
   ```lua
   local Weapon = require(script.Parent.Weapon)
