@@ -124,7 +124,10 @@ end
 -- túnel recto (cilindro) con una cámara al final, para entrar al subsuelo
 local function tunnel(from: Vector3, to: Vector3, radius: number, chamber: number)
 	local mid = (from + to) / 2
-	Terrain:FillCylinder(CFrame.lookAt(mid, to) * CFrame.Angles(math.pi / 2, 0, 0), (to - from).Magnitude, radius, Enum.Material.Air)
+	local axis = (to - from).Unit
+	-- los pozos verticales no pueden usar lookAt (el eje coincide con "arriba"); el cilindro ya es vertical por defecto
+	local frame = if math.abs(axis.Y) > 0.999 then CFrame.new(mid) else CFrame.lookAt(mid, to) * CFrame.Angles(math.pi / 2, 0, 0)
+	Terrain:FillCylinder(frame, (to - from).Magnitude, radius, Enum.Material.Air)
 	Terrain:FillBall(to, chamber, Enum.Material.Air)
 end
 
@@ -332,42 +335,61 @@ local function spawnLights(rng: Random)
 	end
 end
 
+-- Cada fase va protegida: si una falla se avisa en el Output y el resto sigue, y los jugadores siempre acaban apareciendo.
+local function phase(name: string, fn: () -> ())
+	local ok, err = pcall(fn)
+	if not ok then warn(`[World] fase "{name}" falló: {err}`) end
+end
+
 return {
 	Start = function()
-		workspace.FallenPartsDestroyHeight = -Config.Depth - 200 -- si no, Roblox borra el núcleo (y a quien caiga) bajo y = -500
+		workspace:SetAttribute("WorldReady", false) -- el cliente muestra "Generando mundo" hasta que sea true
+		phase("límite de caída", function()
+			workspace.FallenPartsDestroyHeight = -Config.Depth - 200 -- si no, Roblox borra el núcleo (y a quien caiga) bajo y = -500
+		end)
 		Players.CharacterAutoLoads = false
 
 		local t0 = os.clock()
 		local stats = { { 0, 0 }, { 0, 0 }, { 0, 0 } }
-		Terrain:Clear()
-		for x0 = -Config.HalfSize, Config.HalfSize - CHUNK, CHUNK do
-			for z0 = -Config.HalfSize, Config.HalfSize - CHUNK, CHUNK do
-				generateChunk(x0, z0, stats)
-				task.wait()
+		phase("terreno", function()
+			Terrain:Clear()
+			local chunks = (Config.HalfSize * 2 / CHUNK) ^ 2
+			local done = 0
+			for x0 = -Config.HalfSize, Config.HalfSize - CHUNK, CHUNK do
+				for z0 = -Config.HalfSize, Config.HalfSize - CHUNK, CHUNK do
+					generateChunk(x0, z0, stats)
+					done += 1
+					print(`[World] terreno {done}/{chunks}`)
+					task.wait()
+				end
 			end
-		end
-		carveEntrances()
-		buildCore()
-		buildBorders()
-		buildSpawn()
+		end)
+		phase("entradas", carveEntrances)
+		phase("núcleo", buildCore)
+		phase("bordes", buildBorders)
+		phase("spawn", buildSpawn)
 
 		mineralFolder = Instance.new("Folder")
 		mineralFolder.Name = "WorldMinerals"
 		mineralFolder.Parent = workspace
 		local rng = Random.new(seed + 1) -- misma distribución inicial todo el día
-		spawnSurfaceMinerals(rng, Config.SurfaceMinerals, nil, 0)
-		spawnSurfaceMinerals(rng, Config.NearSpawnMinerals, Vector2.new(Config.SpawnPosition.X, Config.SpawnPosition.Z), 45)
-		fillMinerals(rng, math.huge)
-		spawnLights(rng)
+		phase("minerales de la meseta", function()
+			spawnSurfaceMinerals(rng, Config.SurfaceMinerals, nil, 0)
+			spawnSurfaceMinerals(rng, Config.NearSpawnMinerals, Vector2.new(Config.SpawnPosition.X, Config.SpawnPosition.Z), 45)
+		end)
+		phase("minerales de las cuevas", function() fillMinerals(rng, math.huge) end)
+		phase("luces", function() spawnLights(rng) end)
 
 		print(`[World] semilla {seed}, listo en {string.format("%.1f", os.clock() - t0)} s, {#CollectionService:GetTagged("Mineral")} minerales`)
 		for i, s in stats do
 			print(`[World] capa {i}: {string.format("%.0f", 100 * s[1] / math.max(s[2], 1))}% de aire`)
 		end
 
+		-- Todos aparecen (o reaparecen) en el spawn, incluso quien haya salido antes de tiempo y caído al vacío.
 		Players.CharacterAutoLoads = true
+		workspace:SetAttribute("WorldReady", true)
 		for _, p in Players:GetPlayers() do
-			if not p.Character then p:LoadCharacter() end
+			task.spawn(function() p:LoadCharacter() end)
 		end
 
 		MineralsFeature.Exploded:Connect(function(pos: Vector3, radius: number)
@@ -377,7 +399,7 @@ return {
 		local respawnRng = Random.new()
 		while true do
 			task.wait(Config.RespawnInterval)
-			fillMinerals(respawnRng, Config.RespawnBatch)
+			phase("reposición", function() fillMinerals(respawnRng, Config.RespawnBatch) end)
 		end
 	end,
 }
