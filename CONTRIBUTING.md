@@ -56,6 +56,9 @@ Para que no choque con el resto:
   ```
 
 ## Minerales
-- `server/Features/Minerals.luau`: un disparo suelta el mineral (impulso + flota; números en `Config/MineralBehavior.luau`).
-- `server/Features/Capture.luau`: tocar un mineral suelto lo captura y suma su valor al atributo `Carried` del jugador.
-- Los minerales son cualquier `Part` con el tag `Mineral` y atributo `Rarity` (ver `Config/Minerals.luau`); cambiar el arte no toca esta lógica.
+- **Mineral** = `Part` con tag `Mineral` y atributo `Rarity` (ver `Config/Minerals.luau`). Puede haber uno solo o varios juntos.
+- `server/Features/Minerals.luau`: disparar a un mineral lo hace **explotar**: desaparece, suelta materiales nuevos (**Loot**, otro objeto distinto, tag `Loot`) y detona en cadena a los minerales dentro del radio. Números en `Config/MineralBehavior.luau`.
+- `client/Features/Minerals.luau`: efectos de la explosión (destello, onda, chispas, luz, temblor de cámara).
+- `server/Features/Capture.luau`: tocar un Loot lo captura y suma su valor al atributo `Carried` del jugador.
+- Fracture puede suscribirse a `require(script.Parent.Minerals).Exploded:Connect(function(position, radius) end)` para romper el escenario cercano a la explosión.
+- Cambiar el arte no toca esta lógica.

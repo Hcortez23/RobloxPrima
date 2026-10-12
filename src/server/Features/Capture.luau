@@ -1,4 +1,4 @@
--- Tocar un mineral "Free" lo captura: se destruye y suma su valor al atributo "Carried" del jugador
+-- Tocar un material suelto (Loot) lo captura: se destruye y suma su valor al atributo "Carried" del jugador
 -- (lo que lleva en el run; Extraction lo convertirá en materiales guardados).
 -- ponytail: Touched, suficiente para prototipo; si se pierden capturas a alta velocidad, usar GetPartBoundsInRadius.
 local CollectionService = game:GetService("CollectionService")
@@ -22,7 +22,7 @@ end
 
 return {
 	Start = function()
-		CollectionService:GetInstanceAddedSignal("Mineral"):Connect(watch)
-		for _, m in CollectionService:GetTagged("Mineral") do watch(m) end
+		CollectionService:GetInstanceAddedSignal("Loot"):Connect(watch)
+		for _, m in CollectionService:GetTagged("Loot") do watch(m) end
 	end,
 }

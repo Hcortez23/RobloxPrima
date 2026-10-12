@@ -44,10 +44,13 @@ return {
 		wall(room, Vector3.new(-COLS * CELL / 2, 0, -30))
 		wall(room, Vector3.new(-COLS * CELL / 2, 0, -50))
 
-		local i = 0
-		for rarity in Minerals do
-			mineral(room, rarity, Vector3.new(-6 + i * 4, 6, -20))
-			i += 1
+		-- dos aislados (explosión simple) y un cúmulo en el centro (cadena)
+		local spots = {
+			{ "Comun", -40, 6 }, { "Legendario", 40, 6 },
+			{ "Raro", -6, 6 }, { "Raro", 0, 8 }, { "Epico", 5, 6 }, { "Raro", -2, 4 }, { "Comun", 8, 9 },
+		}
+		for _, s in spots do
+			mineral(room, s[1], Vector3.new(s[2], s[3], -20))
 		end
 	end,
 }
