@@ -28,7 +28,8 @@
 
     "Workspace": {
       "$properties": {
-        "FilteringEnabled": true
+        "FilteringEnabled": true,
+        "FallenPartsDestroyHeight": -3000
       }
     },
     "Lighting": {

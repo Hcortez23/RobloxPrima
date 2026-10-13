@@ -52,6 +52,19 @@ Cada jugador tiene un mural tipo corral en su zona de spawn para guardar y exhib
 
 No hay PvP directo por el momento. Los jugadores compiten indirectamente a través de rankings y leaderboards (colecciones, rachas de fracturas, etc.). Se contempla agregar servidores anárquicos (con PvP) más adelante, como modo aparte.
 
+## Mundo
+
+Generado por código (`server/Features/World.luau`, números en `shared/Config/World.luau`); cambia cada día según la semilla.
+
+- **Cueva de la base (spawn):** donde aparecen los jugadores; aquí van las bases y las tiendas. Es el punto de partida y de regreso.
+- **Gran puerta de arco:** un pasaje une la cueva de la base con la cueva del foso.
+- **Cueva del foso:** caverna enorme bajo el centro del mapa, con luces y máquinas industriales; es la entrada a la experiencia (de aquí se baja a las arenas).
+- **El pozo al núcleo:** tubo vertical desde el piso de la cueva del foso hasta el núcleo, tapado por una rejilla con cristal. Se ve el brillo del núcleo pero no se puede bajar por ahí, y ninguna cueva lo cruza: no hay atajo a las capas profundas.
+- **Capas hacia el núcleo (2,400 studs):** cuatro capas con roca, luz y minerales propios; cuanto más hondo, más raros.
+- **Cavernas-arena:** cavernas grandes y verticales en cada capa (salientes, pilares, estalactitas) para perseguir fragmentos con gancho, dash y doble salto. Una cadena de túneles las une desde la base hasta la cámara del núcleo.
+- **Cámara del núcleo:** al fondo, el último eslabón del recorrido.
+- **Superficie:** meseta con montañas hacia los bordes, a la que se sube desde la base.
+
 ## Dirección artística
 
 Estética base sci-fi/industrial, con posibilidad de integrar distintos biomas más adelante.
