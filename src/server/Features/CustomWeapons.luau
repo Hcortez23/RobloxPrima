@@ -133,6 +133,9 @@ local function build(entry): Tool?
 	tool:SetAttribute("Weapon", true)
 	tool:SetAttribute("Crosshair", true)
 	tool:SetAttribute("Damage", entry.Damage)
+	if entry.DigPower then
+		tool:SetAttribute("DigPower", entry.DigPower) -- qué tanto excava (Config/Excavation)
+	end
 
 	-- Una copia del aura va a ReplicatedStorage.WeaponEffects para que los clientes la pongan en cada disparo;
 	-- el aura del arma se rehace más abajo pegada al arma. Por seguridad no se conservan scripts del Marketplace.

@@ -1,5 +1,6 @@
 -- Hitscan desde la boca del arma (Tool en la mano). El cliente solo manda hacia dónde apunta;
--- el origen lo toma el servidor del Muzzle. Hit: Weapon.Hit:Connect(function(player, position, normal, instance, damage) end)
+-- el origen lo toma el servidor del Muzzle.
+-- Hit: Weapon.Hit:Connect(function(player, position, normal, instance, damage, digPower) end)
 -- Arma = el Rifle o cualquier Tool con atributo Weapon (ver CustomWeapons); su atributo Damage manda sobre Config.Damage.
 -- Otras features (Fracture, etc.) se suscriben a Hit; Weapon no sabe qué es "Fracturable".
 local Players = game:GetService("Players")
@@ -102,7 +103,8 @@ return {
 			-- ShotEffect: nombre del efecto en ReplicatedStorage.WeaponEffects que el cliente dibuja como proyectil
 			tracer:FireAllClients(origin, result and result.Position or origin + dir, tool:GetAttribute("ShotEffect"))
 			if result then
-				hitEvent:Fire(player, result.Position, result.Normal, result.Instance, tool:GetAttribute("Damage") or Config.Damage)
+				-- DigPower: qué tanto excava en el terreno (nil = el valor por defecto de Config/Excavation)
+				hitEvent:Fire(player, result.Position, result.Normal, result.Instance, tool:GetAttribute("Damage") or Config.Damage, tool:GetAttribute("DigPower"))
 			end
 		end)
 

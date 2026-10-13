@@ -18,8 +18,8 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config.World)
+local Biomes = require(ReplicatedStorage.Shared.Config.Biomes)
 local MineralData = require(ReplicatedStorage.Shared.Config.Minerals)
-local MineralsFeature = require(script.Parent.Minerals)
 
 local Terrain = workspace.Terrain
 local RES = 4 -- tamaño de voxel de Roblox
@@ -60,18 +60,29 @@ local function surfaceHeight(x: number, z: number): number
 	return math.max(mountains, hills)
 end
 
-local function materialAt(depth: number): Enum.Material
-	for _, m in Config.Materials do
-		if depth <= m[1] then return m[2] end
-	end
-	return Enum.Material.Rock
-end
-
 local function layerIndex(depth: number): number
 	for i, layer in Config.Layers do
 		if depth <= layer.MaxDepth then return i end
 	end
 	return #Config.Layers
+end
+
+-- bioma de una capa (Config/Biomes: cada uno cubre un rango de capas)
+local function biomeOf(layer: number)
+	for _, biome in Biomes do
+		if layer >= biome.Layers[1] and layer <= biome.Layers[2] then return biome end
+	end
+	return Biomes[1]
+end
+
+-- material de la roca a esa profundidad: el de su bioma
+local function materialAt(depth: number): Enum.Material
+	return biomeOf(layerIndex(depth)).Material
+end
+
+-- color de luz de la capa a esa profundidad (las capas sin color propio usan el primero)
+local function lightColor(depth: number): Color3
+	return Config.LightColors[layerIndex(depth)] or Config.LightColors[1]
 end
 
 local function layerTop(i: number): number
@@ -93,6 +104,16 @@ local CORE_FLOOR = -Config.Depth + Config.CoreHeight -- bajo esta altura el pozo
 local PIT_NEAR2 = (Config.PitRadius + Config.PitRagged + 2 * RES) ^ 2
 local PIT_SEAL2 = (Config.PitRadius + Config.PitRagged + Config.PitSeal) ^ 2 -- aquí no se abren cuevas
 local HUB_FLOOR = Config.Hub.Center.Y - Config.Hub.Height / 2 -- el pozo empieza en el piso de la base
+
+-- Entrada inicial: sale de la pared de la cueva del foso (EXIT_FROM) y baja hasta la cámara de cruce (JUNCTION).
+-- Las cuevas naturales solo se abren por debajo de esa cámara y cerca del pozo: todo empieza desde la cueva inicial.
+local EXIT_DIR = Config.Hub.ExitDown.Unit
+local EXIT_FROM = Vector3.new(Config.Hub.Center.X, HUB_FLOOR + Config.Hub.TunnelRadius, Config.Hub.Center.Z)
+	+ EXIT_DIR * (Config.Hub.Radius - Config.Hub.TunnelRadius)
+local JUNCTION = EXIT_FROM + EXIT_DIR * Config.Hub.Junction.Distance - Vector3.yAxis * Config.Hub.Junction.Drop
+local CAVE_TOP = JUNCTION.Y + Config.Hub.Junction.Radius
+local CAVE_R2 = Config.CaveRadius ^ 2
+local CAVES_BOTTOM_Y = -Config.CaveZoneDepth + 8 -- de aquí para abajo, roca maciza que se excava
 
 -- Caparazón de roca maciza alrededor de la cueva de la base, la del foso y el pasaje entre ellas: ahí no se abren
 -- cuevas naturales (las cuevas empiezan desde la cámara de cruce). Devuelve el rango de alturas sellado en la columna
@@ -130,6 +151,11 @@ local function overCaves(x: number, z: number, extra: number): boolean
 end
 
 local generatedDepth = 0 -- hasta qué profundidad ya hay terreno (crece mientras se genera)
+
+-- Ruta principal (entrada inicial y túneles entre arenas): Route.luau le pone rieles, cables y letreros.
+-- stop = el tramo termina en una parada (la cámara de cruce o una arena): ahí va una estación de carritos
+type Segment = { from: Vector3, to: Vector3, radius: number, stop: boolean }
+local route: { Segment } = {}
 
 -- Genera las filas [jA, jB] de un bloque de CHUNK x CHUNK. stats[capa] = { aire, total } para ajustar las cuevas.
 local function generateChunk(x0: number, z0: number, jA: number, jB: number, stats)
@@ -175,7 +201,8 @@ local function generateChunk(x0: number, z0: number, jA: number, jB: number, sta
 						local edge = Config.PitRadius + Config.PitRagged * math.noise(x * PIT_NOISE + o4[1], y * PIT_NOISE * 0.5 + o4[2], zs[k] * PIT_NOISE + o4[3])
 						occ = math.min(occ, math.clamp((math.sqrt(r2) - edge) / RES + 0.5, 0, 1))
 					end
-					if occ > 0 and below > Config.CaveMinDepth and not sealed then
+					-- cuevas solo en la capa 1, por debajo de la cámara de cruce y cerca del pozo
+					if occ > 0 and y < CAVE_TOP and y > CAVES_BOTTOM_Y and r2 < CAVE_R2 and not sealed then
 						-- negativo = aire (cueva), positivo = roca
 						local tunnel = math.max(math.abs(math.noise(x1, y1, z1[k])), math.abs(math.noise(x2, y2, z2[k]))) - width
 						local cavern = thr - math.noise(x3, y3, z3[k])
@@ -202,15 +229,41 @@ local function generateChunk(x0: number, z0: number, jA: number, jB: number, sta
 	Terrain:WriteVoxels(Region3.new(Vector3.new(x0, yBottom, z0), Vector3.new(x0 + CHUNK, yTop, z0 + CHUNK)), RES, mats, occs)
 end
 
+-- Bloque de roca maciza: cada tramo de capa con el material de su bioma, sin calcular voxel a voxel.
+local function fillSolidChunk(x0: number, z0: number, fromDepth: number, toDepth: number)
+	for i, layer in Config.Layers do
+		local top, bottom = math.max(fromDepth, layerTop(i)), math.min(toDepth, layer.MaxDepth)
+		if bottom > top then
+			local center = Vector3.new(x0 + CHUNK / 2, -(top + bottom) / 2, z0 + CHUNK / 2)
+			Terrain:FillBlock(CFrame.new(center), Vector3.new(CHUNK, bottom - top, CHUNK), materialAt((top + bottom) / 2))
+		end
+	end
+end
+
+-- ¿El bloque toca la columna del pozo? (ahí hace falta el cálculo voxel a voxel para su borde irregular)
+local function chunkNearPit(x0: number, z0: number): boolean
+	local px, pz = Config.PitCenter.X, Config.PitCenter.Y
+	local dx = math.max(x0 - px, 0, px - (x0 + CHUNK))
+	local dz = math.max(z0 - pz, 0, pz - (z0 + CHUNK))
+	return math.sqrt(dx * dx + dz * dz) < Config.PitRadius + Config.PitRagged + 3 * RES
+end
+
 -- Genera la franja de profundidades [fromDepth, toDepth) en todo el mundo (fromDepth = 0 incluye la superficie).
+-- Bajo la zona de cuevas, lejos del pozo, todo es roca maciza: se rellena por bloques (mucho más rápido).
 local function generateBand(fromDepth: number, toDepth: number, stats)
 	local jB = if fromDepth <= 0 then NY else (Config.Depth - fromDepth) / RES
 	local jA = (Config.Depth - toDepth) / RES + 1
+	local solid = fromDepth >= Config.CaveZoneDepth
 	for x0 = -Config.HalfSize, Config.HalfSize - CHUNK, CHUNK do
 		for z0 = -Config.HalfSize, Config.HalfSize - CHUNK, CHUNK do
-			generateChunk(x0, z0, jA, jB, stats)
-			task.wait()
+			if solid and not chunkNearPit(x0, z0) then
+				fillSolidChunk(x0, z0, fromDepth, toDepth)
+			else
+				generateChunk(x0, z0, jA, jB, stats)
+				task.wait()
+			end
 		end
+		if solid then task.wait() end
 	end
 	generatedDepth = toDepth
 	print(`[World] terreno generado hasta {toDepth} de {Config.Depth}`)
@@ -316,11 +369,12 @@ local function carveHub(): Vector3
 
 	-- la entrada inicial: única salida de la cueva del foso. Baja desde la pared hasta una cámara de cruce (fuera del
 	-- caparazón) y de ahí se bifurcan ramales que se abren a las cuevas naturales; la cadena de arenas parte del cruce.
-	local down = hub.ExitDown.Unit
+	local down = EXIT_DIR
 	local junction = hub.Junction
-	local from = Vector3.new(c.X, HUB_FLOOR + hub.TunnelRadius, c.Z) + down * (r - hub.TunnelRadius)
-	local cross = from + down * junction.Distance - Vector3.yAxis * junction.Drop
+	local from, cross = EXIT_FROM, JUNCTION
 	tunnel(from, cross, hub.TunnelRadius, junction.Radius)
+	table.insert(route, { from = from, to = cross, radius = hub.TunnelRadius, stop = true })
+	Terrain:FillBall(from, hub.TunnelRadius * 1.4, Enum.Material.Air) -- boca ensanchada, bien visible desde la cueva
 	local rng = Random.new(seed + 17)
 	local baseAngle = math.atan2(down.Z, down.X)
 	for i = 1, junction.Branches do
@@ -329,7 +383,7 @@ local function carveHub(): Vector3
 		local a = baseAngle + spread * math.rad(130) + rng:NextNumber(-0.15, 0.15)
 		local len = rng:NextNumber(junction.BranchLength[1], junction.BranchLength[2])
 		local to = cross + Vector3.new(math.cos(a) * len, -rng:NextNumber(15, 50), math.sin(a) * len)
-		tunnel(cross, to, 7, 11)
+		tunnel(cross, to, 9, 13)
 	end
 	return cross
 end
@@ -357,20 +411,22 @@ end
 local function planArenas(): { Arena }
 	local rng = Random.new(seed + 11)
 	local spec = Config.Arenas
-	local lim = Config.HalfSize - spec.Radius[2] - 16
 	local arenas = {}
-	for layer, count in spec.PerLayer do
-		local top, bottom = layerTop(layer), Config.Layers[layer].MaxDepth
-		for _ = 1, count do
+	-- en toda la zona de cuevas: por debajo de las cuevas de arriba (y su caparazón) y hasta CaveZoneDepth
+	local top, bottom = -SHELL_BOTTOM + 20, Config.CaveZoneDepth
+	do
+		for _ = 1, spec.Count do
 			for _ = 1, 30 do -- busca un sitio lejos del pozo y de las otras arenas
 				local radius = rng:NextNumber(spec.Radius[1], spec.Radius[2])
 				local height = rng:NextNumber(spec.Height[1], spec.Height[2])
 				local margin = height / 2 + radius + 12
 				-- siempre por debajo de las cuevas de arriba y su caparazón, para que ningún túnel pase por ellas
-				local shallowest = math.max(top + margin, -SHELL_BOTTOM + 20 + margin)
+				local shallowest = top + margin
 				if bottom - margin <= shallowest then break end
 				local depth = rng:NextNumber(shallowest, bottom - margin)
-				local center = Vector3.new(rng:NextNumber(-lim, lim), -depth, rng:NextNumber(-lim, lim))
+				-- dentro del radio de cuevas, alrededor del pozo (y lejos de él, ver abajo)
+				local a, d = rng:NextNumber(0, math.pi * 2), math.sqrt(rng:NextNumber(0, 1)) * (Config.CaveRadius - radius - 16)
+				local center = Vector3.new(Config.PitCenter.X + math.cos(a) * d, -depth, Config.PitCenter.Y + math.sin(a) * d)
 				local fromPit = Vector2.new(center.X, center.Z) - Config.PitCenter
 				local ok = fromPit.Magnitude > Config.PitRadius + radius + 30
 				for _, other in arenas do
@@ -467,10 +523,13 @@ local function connect(from: Vector3, arena: Arena, allowPit: boolean?)
 			local mid = Vector3.new(detour.X, from.Y + (to.Y - from.Y) * t, detour.Y)
 			tunnel(from, mid, radius, radius + 2)
 			tunnel(mid, to, radius, 0)
+			table.insert(route, { from = from, to = mid, radius = radius, stop = false }) -- desvío alrededor del pozo
+			table.insert(route, { from = mid, to = to, radius = radius, stop = true })
 			return
 		end
 	end
 	tunnel(from, to, radius, 0)
+	table.insert(route, { from = from, to = to, radius = radius, stop = true })
 end
 
 
@@ -481,8 +540,10 @@ local function carveReadyArenas(arenas: { Arena }, entrances: { Vector3 }, start
 		if not arena.carved and arena.bottomDepth <= generatedDepth then
 			carveArena(arena)
 			local previous = arenas[i - 1]
-			if previous then
-				connect(previous.center + Vector3.new(0, -previous.height / 2 + 6, 0), arena, arena.isCore)
+			if arena.isCore then
+				-- la cámara del núcleo no se conecta: se llega excavando a través de las capas
+			elseif previous then
+				connect(previous.center + Vector3.new(0, -previous.height / 2 + 6, 0), arena)
 			elseif start then
 				connect(start, arena)
 			elseif #entrances > 0 then
@@ -588,30 +649,63 @@ local function newCrystal(pos: Vector3, color: Color3)
 	p.CFrame = CFrame.new(pos) * CFrame.Angles(0, math.random() * 6, 0)
 	p.Anchored, p.CanCollide, p.CanQuery, p.Material, p.Color = true, false, false, Enum.Material.Neon, color
 	local light = Instance.new("PointLight")
-	light.Color, light.Range, light.Brightness, light.Shadows = color, Config.LightRange, 1.4, false
+	light.Color, light.Range, light.Brightness, light.Shadows = color, Config.LightRange, Config.LightBrightness, false
 	light.Parent = p
 	p.Parent = lightFolder
 end
 
--- punto de aire al azar, con su suelo, en una capa elegida por peso y dentro de [minDepth, lo ya generado];
--- nil si no se halló
-local function randomCavePoint(rng: Random, minDepth: number?): RaycastResult?
-	local lim = Config.HalfSize - 12
+-- ¿Se puede excavar una esfera de `radius` en `pos`? No: el caparazón del pozo (sería un atajo al núcleo), las cuevas
+-- de la base y del foso con su caparazón, y el fondo del mundo. Se prueban el centro y los extremos de la esfera.
+local function canDig(pos: Vector3, radius: number): boolean
+	local pitSealR = Config.PitRadius + Config.PitRagged + Config.PitSeal
+	local offsets = { Vector3.zero, Vector3.xAxis, -Vector3.xAxis, Vector3.zAxis, -Vector3.zAxis, Vector3.yAxis, -Vector3.yAxis }
+	for _, o in offsets do
+		local p = pos + o * radius
+		if p.Y < CORE_FLOOR then return false end
+		local fromPit = Vector2.new(p.X, p.Z) - Config.PitCenter
+		if p.Y < HUB_FLOOR and fromPit.Magnitude < pitSealR then return false end
+		local low, high = shellRange(p.X, p.Z)
+		if low and p.Y >= low and p.Y <= high then return false end
+	end
+	return true
+end
+
+local CAVE_LAYER_BOTTOM = Config.CaveZoneDepth -- solo la zona de cuevas tiene cuevas (las primeras capas)
+
+-- capa elegida por peso entre las ya generadas y más hondas que `minDepth`; nil si no hay
+local function pickLayer(rng: Random, minDepth: number?): number?
 	local low = math.max(minDepth or 8, 8)
 	local weights = {}
 	for i, layer in Config.Layers do
 		if layerTop(i) < generatedDepth and layer.MaxDepth > low then weights[i] = layer.SpawnWeight end
 	end
 	if next(weights) == nil then return nil end
+	return pickWeighted(rng, weights)
+end
+
+-- profundidad al azar dentro de la capa, sin pasar de lo generado, de `minDepth` ni de `maxDepth`; nil si no cabe
+local function depthInLayer(rng: Random, i: number, minDepth: number?, maxDepth: number?): number?
+	local top = math.max(layerTop(i), minDepth or 8, 8)
+	local bottom = math.min(Config.Layers[i].MaxDepth, generatedDepth, maxDepth or math.huge) - 4
+	if bottom <= top then return nil end
+	return rng:NextNumber(top, bottom)
+end
+
+-- punto (x, z) al azar dentro del radio de cuevas, alrededor del pozo
+local function pointNearPit(rng: Random, margin: number): (number, number)
+	local a, r = rng:NextNumber(0, math.pi * 2), math.sqrt(rng:NextNumber(0, 1)) * (Config.CaveRadius - margin)
+	return Config.PitCenter.X + math.cos(a) * r, Config.PitCenter.Y + math.sin(a) * r
+end
+
+-- punto de aire al azar en las cuevas de la capa `i` (dentro de la zona de cuevas), con su suelo; nil si no se halló
+local function randomCavePoint(rng: Random, i: number, minDepth: number?): RaycastResult?
+	if (minDepth or 0) >= CAVE_LAYER_BOTTOM then return nil end
 	for _ = 1, 40 do
-		local i = pickWeighted(rng, weights)
-		local top = math.max(layerTop(i), low)
-		local bottom = math.min(Config.Layers[i].MaxDepth, generatedDepth) - 4
-		if bottom > top then
-			local d = rng:NextNumber(top, bottom)
-			local hit = floorBelow(Vector3.new(rng:NextNumber(-lim, lim), -d, rng:NextNumber(-lim, lim)), 50)
-			if hit then return hit end
-		end
+		local d = depthInLayer(rng, i, minDepth, CAVE_LAYER_BOTTOM)
+		if not d then return nil end
+		local x, z = pointNearPit(rng, 8)
+		local hit = floorBelow(Vector3.new(x, -d, z), 50)
+		if hit then return hit end
 	end
 	return nil
 end
@@ -634,22 +728,45 @@ local function placeCluster(rng: Random, hit: RaycastResult): number
 	return count
 end
 
--- Llena el pool hasta `cap` minerales (o `limit` grupos). Un intento fallido no corta el llenado: antes se cortaba
--- al primero y quedaban muy pocos minerales.
+-- Veta: varios minerales juntos incrustados en la roca maciza de una capa profunda (bajo la zona de cuevas) (se encuentran excavando; su brillo
+-- se nota un poco a través de la roca). Devuelve cuántos puso.
+local function placeVein(rng: Random, i: number, minDepth: number?): number
+	local d = depthInLayer(rng, i, minDepth)
+	if not d then return 0 end
+	local x, z = pointNearPit(rng, 12)
+	local center = Vector3.new(x, -d, z)
+	if not canDig(center, 6) then return 0 end -- nunca dentro de zonas protegidas (el pozo y su caparazón)
+	local count = 0
+	for _ = 1, rng:NextInteger(2, 5) do
+		local spot = center + Vector3.new(rng:NextNumber(-4, 4), rng:NextNumber(-3, 3), rng:NextNumber(-4, 4))
+		newMineral(pickWeighted(rng, Config.Layers[i].Rarity), spot)
+		count += 1
+	end
+	return count
+end
+
+-- Llena el pool hasta `cap` minerales (o `limit` grupos): en la capa 1, grupos sobre el suelo de las cuevas; más
+-- abajo, vetas dentro de la roca. Un intento fallido no corta el llenado.
 local function fillMinerals(rng: Random, limit: number, cap: number, minDepth: number?)
 	local have = #CollectionService:GetTagged("Mineral")
 	local misses = 0
 	while have < cap and limit > 0 and misses < 25 do
-		local hit = randomCavePoint(rng, minDepth)
-		if hit then
-			have += placeCluster(rng, hit)
+		local i = pickLayer(rng, minDepth)
+		local placed = 0
+		if i and layerTop(i) < CAVE_LAYER_BOTTOM then
+			local hit = randomCavePoint(rng, i, minDepth)
+			if hit then placed = placeCluster(rng, hit) end
+		elseif i then
+			placed = placeVein(rng, i, minDepth)
+		end
+		if placed > 0 then
+			have += placed
 			limit -= 1
 		else
 			misses += 1
 		end
 	end
 end
-
 -- Luces y minerales propios de cada arena, sobre sus salientes y su fondo.
 local function furnishArena(arena: Arena)
 	local rng = arena.rng
@@ -662,7 +779,7 @@ local function furnishArena(arena: Arena)
 		end
 		return nil
 	end
-	local color = Config.LightColors[layerIndex(-arena.center.Y)]
+	local color = lightColor(-arena.center.Y)
 	for _ = 1, Config.Arenas.Lights do
 		local hit = spotInside()
 		if hit then newCrystal(hit.Position + hit.Normal * 0.9, color) end
@@ -712,9 +829,10 @@ end
 
 local function spawnLights(rng: Random, count: number, minDepth: number?)
 	for _ = 1, count do
-		local hit = randomCavePoint(rng, minDepth)
+		local i = pickLayer(rng, minDepth)
+		local hit = i and layerTop(i) < CAVE_LAYER_BOTTOM and randomCavePoint(rng, i, minDepth)
 		if hit then
-			newCrystal(hit.Position + hit.Normal * 0.9, Config.LightColors[layerIndex(-hit.Position.Y)])
+			newCrystal(hit.Position + hit.Normal * 0.9, lightColor(-hit.Position.Y))
 		end
 	end
 end
@@ -726,12 +844,22 @@ local function phase(name: string, fn: () -> ())
 end
 
 return {
+	-- para otras features (Excavation, Route)
+	Route = route, -- segmentos de la ruta principal (completa cuando WorldReady = true)
+	CanDig = canDig,
+	Hardness = function(depth: number): number
+		return Config.Layers[layerIndex(depth)].Hardness
+	end,
+
 	Start = function()
 		workspace:SetAttribute("WorldReady", false) -- el cliente muestra "Generando mundo" hasta que sea true
 		if workspace.FallenPartsDestroyHeight > -Config.Depth then
 			warn(`[World] FallenPartsDestroyHeight es {workspace.FallenPartsDestroyHeight}: quien baje de ahí muere. Se ajusta en default.project.json (Workspace) y se aplica al conectar Rojo.`)
 		end
 		Players.CharacterAutoLoads = false
+		for _, biome in Biomes do -- color de la roca de cada bioma (Roblox colorea el terreno por material)
+			Terrain:SetMaterialColor(biome.Material, biome.Color)
+		end
 		-- la base gris de las plantillas de Roblox tapa la meseta (su cara de arriba está en y = 0): se quita
 		local baseplate = workspace:FindFirstChild("Baseplate")
 		if baseplate then baseplate:Destroy() end
@@ -789,9 +917,7 @@ return {
 			task.spawn(function() p:LoadCharacter() end)
 		end
 
-		MineralsFeature.Exploded:Connect(function(pos: Vector3, radius: number)
-			Terrain:FillBall(pos, radius * Config.CarveFactor, Enum.Material.Air)
-		end)
+		-- las explosiones de minerales excavan en Excavation.luau (respetando la dureza y las zonas protegidas)
 
 		-- 2) El resto, hacia el núcleo, mientras se juega.
 		task.spawn(function()
