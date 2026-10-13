@@ -77,3 +77,14 @@ Para que no choque con el resto:
 - `server/Features/Ambience.luau`: ambiente **postapocalíptico sci-fi** (atardecer polvoriento, bruma ocre, colores apagados, bloom para el neón, nubes, colores de terreno). Se afina todo ahí.
 - Sin plataformas: no hay Baseplate, `TestRoom` ni `GrappleTest`; el gancho se engancha al terreno.
 - El rifle ya no sale de StarterPack: `Weapon` (servidor) lo entrega al aparecer cada personaje, y `Movement` evita duplicar el gancho. `Config/Weapon.Debug = true` imprime los disparos en el Output.
+
+## Mundo, base y carritos
+- `server/Features/World.luau` + `shared/Config/World.luau`: genera el terreno (cuevas solo en la zona de arriba; más abajo roca maciza por bloques), la cueva de la base, la del foso, el pozo sellado, arenas y minerales. Exporta `World.Route` (ruta principal), `World.CanDig(pos, radio)` y `World.Hardness(profundidad)`.
+- `shared/Config/Biomes.luau`: 5 biomas de 4 capas (nombre, material, color, luz). `Config/World` calcula cada capa (profundidad, dureza, rareza, cantidad) con curvas.
+- `client/Features/Biomes.luau`: ambiente por bioma y aviso con el nombre de la capa.
+- `server/Features/Hub.luau`: utilería de la cueva del foso (rejilla, máquinas, portal DESCENSO, puerta de arco).
+- `server/Features/Route.luau`: rieles, cables y letreros de la ruta; exporta `Route.Paths` (puntos del suelo) y pone `workspace.RouteReady`.
+- `server/Features/Bases.luau` + `Config/Bases.luau`: bases de los jugadores, spawn en su base, panel y silos. Datos en atributos del jugador: `Stored_<Rareza>`, `Stat_Carts`, `Stat_Captured`, `Stat_DeepestLayer`. API: `Bases.Get`, `Bases.All`, `Bases.Deposit`, `Bases.TakeInventory`. Pone `workspace.BasesReady`.
+- `server/Features/Carts.luau` + `Config/Carts.luau`: estaciones y carritos que llevan el inventario hasta el andén de la base.
+- `server/Features/Excavation.luau` (+ cliente) y `Config/Excavation.luau`: los disparos al terreno excavan según `DigPower` del arma y `Hardness` de la capa.
+- Rendimiento: `StreamingEnabled` está activo (cada cliente solo carga lo cercano), así que en el cliente no hay que suponer que todo el mapa existe.

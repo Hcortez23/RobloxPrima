@@ -1,4 +1,4 @@
--- Efectos llamativos en cada mineral (tag "Mineral") según su rareza, ver Config/MineralFX:
+-- Efectos llamativos en los minerales cercanos (tag "Mineral") según su rareza, ver Config/MineralFX:
 -- luz que late, contorno brillante, destellos, partículas que suben, cometas en órbita, rayos de luz girando,
 -- un destello fuerte en estrella cada pocos segundos, y giro + flotación en los modelos de assets/models/Minerals. Todo es visual y solo en el cliente:
 -- el servidor (Minerals.luau) sigue usando la posición original para disparos y explosiones.
@@ -347,6 +347,9 @@ local function cleanup(mineral: Instance)
 		return
 	end
 	active[mineral] = nil
+	if mineral.Parent and mineral:GetAttribute("MineralModel") then
+		entry.mineral:PivotTo(entry.base) -- deja el modelo quieto en su lugar original
+	end
 	for _, effect in entry.effects do
 		effect:Destroy()
 	end
@@ -354,11 +357,32 @@ end
 
 return {
 	Start = function()
-		CollectionService:GetInstanceAddedSignal("Mineral"):Connect(setup)
-		CollectionService:GetInstanceRemovedSignal("Mineral"):Connect(cleanup)
-		for _, mineral in CollectionService:GetTagged("Mineral") do
-			task.spawn(setup, mineral)
+		-- Solo los minerales cerca de la cámara llevan efectos y tienen su luz encendida: con cientos de minerales en el
+		-- mundo, tenerlos todos activos costaría mucho. Se revisa cada medio segundo.
+		local function refresh()
+			local camPos = workspace.CurrentCamera.CFrame.Position
+			for _, mineral in CollectionService:GetTagged("Mineral") do
+				if mineral:IsA("PVInstance") and mineral:IsDescendantOf(workspace) then
+					local dist = ((mineral :: PVInstance):GetPivot().Position - camPos).Magnitude
+					local light = mineral:FindFirstChildOfClass("PointLight") -- la luz propia del mineral (la pone el servidor)
+					if light then
+						light.Enabled = dist <= Config.LightRadius
+					end
+					if dist <= Config.ActiveRadius and not active[mineral] then
+						setup(mineral)
+					elseif dist > Config.ActiveRadius + 20 and active[mineral] then
+						cleanup(mineral)
+					end
+				end
+			end
 		end
+		CollectionService:GetInstanceRemovedSignal("Mineral"):Connect(cleanup)
+		task.spawn(function()
+			while true do
+				refresh()
+				task.wait(0.5)
+			end
+		end)
 
 		RunService.RenderStepped:Connect(function()
 			local t = os.clock()

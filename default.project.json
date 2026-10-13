@@ -29,7 +29,10 @@
     "Workspace": {
       "$properties": {
         "FilteringEnabled": true,
-        "FallenPartsDestroyHeight": -3000
+        "FallenPartsDestroyHeight": -5600,
+        "StreamingEnabled": true,
+        "StreamingMinRadius": 128,
+        "StreamingTargetRadius": 512
       }
     },
     "Lighting": {

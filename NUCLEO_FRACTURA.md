@@ -56,15 +56,27 @@ No hay PvP directo por el momento. Los jugadores compiten indirectamente a trav�
 
 Generado por código (`server/Features/World.luau`, números en `shared/Config/World.luau`); cambia cada día según la semilla.
 
-- **Cueva de la base (spawn):** donde aparecen los jugadores; aquí van las bases y las tiendas. Es el punto de partida y de regreso.
+- **Cueva de la base (spawn):** cada jugador tiene su base, una bahía industrial en el anillo de la cueva, y aparece en ella. Tiene andén de carritos, tolva y cinta que llenan 4 silos (uno por rareza), panel de estadísticas (almacén, valor, envíos, minerales capturados, capa más profunda), mural de exhibición de 5 espacios, grúa y techo. El centro queda como plaza para las tiendas.
 - **Gran puerta de arco:** un pasaje une la cueva de la base con la cueva del foso.
-- **Cueva del foso:** caverna enorme bajo el centro del mapa, con luces y máquinas industriales; es la entrada a la experiencia (de aquí se baja a las arenas).
-- **El pozo al núcleo:** tubo vertical desde el piso de la cueva del foso hasta el núcleo, tapado por una rejilla con cristal. Se ve el brillo del núcleo pero no se puede bajar por ahí, y ninguna cueva lo cruza: no hay atajo a las capas profundas.
-- **Capas hacia el núcleo (2,400 studs):** cuatro capas con roca, luz y minerales propios; cuanto más hondo, más raros.
-- **Cavernas-arena:** cavernas grandes y verticales en cada capa (salientes, pilares, estalactitas) para perseguir fragmentos con gancho, dash y doble salto. Una cadena de túneles las une desde la base hasta la cámara del núcleo.
-- **Cámara del núcleo:** al fondo, el último eslabón del recorrido.
-- **Superficie:** meseta con montañas hacia los bordes, a la que se sube desde la base.
+- **Cueva del foso:** caverna enorme bajo el centro del mapa, con luces y máquinas industriales; es la entrada a la experiencia. Su única salida es el portal "DESCENSO".
+- **El pozo al núcleo:** tubo vertical desde el piso de la cueva del foso hasta el núcleo, tapado por una rejilla con cristal. Se ve el brillo del núcleo pero no se puede bajar por ahí, ni cavar hacia él: no hay atajo a las capas profundas.
+- **Zona de cuevas (capas 1–2):** desde la entrada inicial se bifurcan cuevas naturales y 4 cavernas-arena (salientes, pilares, estalactitas) para perseguir fragmentos con gancho, dash y doble salto.
+- **De la capa 3 hacia abajo, todo se excava:** roca maciza que se abre disparando; cuanto más hondo, más dura (`Hardness` por capa). Cada arma tiene un poder de excavación (`DigPower`): con un arma débil la roca profunda no cede, así que bajar exige mejores armas. Los minerales están incrustados en vetas dentro de la roca.
+- **Ruta y carritos (la extracción):** rieles, cables y letreros ("▲ BASE" / "▲ DESCENSO") desde el portal por los túneles de la zona de cuevas. En las estaciones (cueva del foso, cámara de cruce y cada arena) el jugador envía lo que lleva y un carrito lo lleva por los rieles hasta el andén de su base, donde se suma al almacén. Lo que se lleva encima está en riesgo; lo que llega a la base, a salvo.
+- **Cámara del núcleo:** al fondo; se llega excavando a través de todas las capas.
+- **Superficie:** meseta con montañas hacia los bordes; por ahora no se puede llegar (la salida está desactivada).
 
+### Capas (20, de 240 studs; 4.800 de profundidad)
+
+| Bioma | Capas |
+|---|---|
+| **Corteza en ruinas** (roca gris y ceniza) | 1 Sótanos colapsados · 2 Galerías de escombro · 3 Vetas de ceniza · 4 Fosas de chatarra |
+| **Salares de cristal** (sal blanca rosada, brillo frío) | 5 Llanuras de sal · 6 Geodas rosadas · 7 Bosque de prismas · 8 Cámara de ecos |
+| **Criogrietas** (hielo azul) | 9 Grietas de escarcha · 10 Glaciar enterrado · 11 Lagos congelados · 12 Corazón de hielo |
+| **Basalto ferroso** (roca oscura oxidada) | 13 Coladas de basalto · 14 Minas de hierro · 15 Forja olvidada · 16 Columnas negras |
+| **Manto incandescente** (roca agrietada sobre lava) | 17 Brasas dormidas · 18 Ríos de magma · 19 Cámara de presión · 20 Umbral del núcleo |
+
+Cada bioma tiene su roca, su color y su luz ambiental; al entrar en una capa aparece su nombre en pantalla. Por capa crecen la dureza (×1.15 por capa: de 1 a ~14) y la rareza de los minerales, y baja su cantidad.
 ## Dirección artística
 
 Estética base sci-fi/industrial, con posibilidad de integrar distintos biomas más adelante.
@@ -73,7 +85,11 @@ Estética base sci-fi/industrial, con posibilidad de integrar distintos biomas m
 
 - ☐ Barra de "estabilidad del núcleo" que se degrada con el tiempo, para generar tensión creciente durante el run
 
-- ☐ Si los biomas afectan la física de fractura o son solo estéticos
+- ☑ Biomas: 5 biomas de 4 capas; visuales (roca, color, luz); la jugabilidad cambia por la dureza de cada capa
+
+- ☐ Guardar el almacén y las estadísticas de la base entre sesiones (DataStore)
+
+- ☐ Cómo encaja la pérdida al morir con el almacén de la base (hoy solo se pierde lo que se lleva encima)
 
 - ☐ Si los minerales únicos rotan de posición en cada evento o son fijos en el mapa
 

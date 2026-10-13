@@ -9,6 +9,8 @@ return {
 	Epico = { Light = 3.5, LightRange = 18, Twinkles = 16, Motes = 0, Comets = 0, Rays = 0, Highlight = true, Spin = 30, Bob = 0.5, FlashEvery = 2.5, FlashSize = 2.4 },
 	Legendario = { Light = 5, LightRange = 24, Twinkles = 24, Motes = 0, Comets = 0, Rays = 6, Highlight = true, Spin = 18, Bob = 0.6, FlashEvery = 1.8, FlashSize = 3 },
 	PulseTime = 1.2, -- segundos de cada latido de luz y contorno
+	ActiveRadius = 160, -- solo los minerales a esta distancia de la cámara llevan efectos (rendimiento)
+	LightRadius = 220, -- más lejos, la luz propia de cada mineral se apaga
 	FlashSparks = false, -- chispas que salen disparadas con cada destello
 	FlashRainbow = true, -- destello en colores de arcoíris (false = blanco y color de la rareza)
 }
