@@ -38,7 +38,8 @@ Cada jugador tiene un mural tipo corral en su cueva-base para guardar y exhibir 
 
 - Los materiales exhibidos siguen siendo vendibles (no se bloquean)
 
-- Visible para otros jugadores que visiten el spawn, con componente social/status
+- Visible para otros jugadores que visiten la base, con componente social/status
+- Implementado (`server/Features/Mural`): 5 estands-vitrina a la derecha de la entrada de cada cueva-base, con el mineral girando adentro y una placa con nombre, cantidad y valor. El del centro, más grande, es el trofeo con el mineral más valioso. Se llenan solos con los tipos guardados, del más valioso al menos; el dueño puede cambiar cada uno con "Exhibir otro mineral"
 
 ## Progresión
 
@@ -63,7 +64,7 @@ No hay PvP directo por el momento. Los jugadores compiten indirectamente a trav�
 
 ## Mundo
 
-Generado por código (`server/Features/World.luau`, números en `shared/Config/World.luau`); cambia cada día según la semilla.
+Generado por código (`server/Features/World.luau`, números en `shared/Config/World.luau`); cambia cada día según la semilla. Para ahorrar memoria, solo existe lo que hace falta: la capa 1 cerca del centro al empezar, la columna del pozo completa y, del resto, lo que rodea a los jugadores (se genera a medida que exploran).
 
 - **Cuevas-base (spawn de cada jugador):** 8 cuevas propias (radio 140, del tamaño de la antigua cueva de spawn) en anillo alrededor de la cueva del foso, cada una unida a ella por un pasaje con arcos que muestran el nombre del dueño. Cada jugador aparece en la suya. Dentro: andén de carritos con tolva, grúa y cinta; panel de estadísticas a la izquierda de la entrada (almacén, valor, tipos conseguidos, envíos, minerales capturados, capa más profunda); mural de exhibición de 5 espacios; y una nave de almacén con **un silo por cada tipo de mineral** (en filas de 10, pensada para ~100 tipos), cada uno con barra de llenado y placa con nombre y cantidad.
 - **Cueva del foso = zona común (hub de la capa 1):** el spawn general, el portal DESCENSO, las bocas de los 8 pasajes, la estación de carritos, el elevador y el terminal del permiso para la capa 2.
@@ -76,7 +77,7 @@ Generado por código (`server/Features/World.luau`, números en `shared/Config/W
 - **Ruta (orientación):** rieles, cables y letreros ("▲ BASE" / "▲ DESCENSO") desde el portal por los túneles de la zona de cuevas.
 - **Carritos (la extracción):** en la estación de cada hub el jugador envía lo que lleva. El carrito es solo visual: entra lleno por un túnel corto solo para carritos (una reja no deja pasar a los jugadores) y, apenas se pierde de vista, lo que lleva se suma al almacén de su base y el carrito desaparece; enseguida sale uno vacío para el siguiente envío. Lo que se lleva encima está en riesgo; lo que llega a la base, a salvo.
 - **Cámara del núcleo:** al fondo; se llega excavando a través de todas las capas.
-- **Superficie:** meseta con montañas hacia los bordes; por ahora no se puede llegar (la salida está desactivada).
+- **Superficie:** por ahora no se puede llegar (la salida está desactivada), así que es roca plana; el relieve con montañas se activa con `SurfaceRelief` cuando haga falta.
 
 ### Capas y biomas (10 capas de 800 studs; 8.000 de profundidad; mapa de 2.048 × 2.048; 4 biomas por capa)
 

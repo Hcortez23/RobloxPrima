@@ -1,3 +1,5 @@
+--!native
+--!optimize 2
 -- Mundo: meseta enorme con un pozo estrecho y vertical que baja directo al núcleo, hecho con Terrain por código.
 --  · Bajo la meseta, 10 capas de roca con 4 biomas cada una (shared/BiomeMap dice cuál va en cada sitio; cada bioma
 --    tiene su material de roca). La zona común de arriba (cuevas del foso y de las bases) es de roca neutra.
@@ -13,9 +15,9 @@
 --  · Iluminación del subsuelo con cristales luminosos; los minerales también brillan.
 --  · Pool de minerales por capas (más raros hacia el núcleo), repuestos con el tiempo, más unos cuantos a la vista.
 --  · Las explosiones de minerales excavan el terreno (Minerals.Exploded).
--- Se genera por franjas de arriba hacia abajo: los jugadores entran cuando está lista Config.ReadyDepth y el resto
--- se genera en segundo plano. El límite de caída (FallenPartsDestroyHeight) va en default.project.json: un script
--- no tiene permiso para cambiarlo.
+-- Se genera por celdas y solo lo necesario (ver «Generación por celdas»): los jugadores entran cuando está la capa 1
+-- cerca del centro; la columna del pozo se completa en segundo plano y el resto aparece alrededor de los jugadores.
+-- El límite de caída (FallenPartsDestroyHeight) va en default.project.json: un script no tiene permiso para cambiarlo.
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -122,26 +124,41 @@ local CAVES_BOTTOM_Y = -Config.CaveZoneDepth + 8 -- de aquí para abajo, roca ma
 local BASE = BaseLayout.Config
 local SHELL = Config.CaveShell
 local SHELL_BOTTOM = HUB_FLOOR - SHELL
-local HUB_XZ = Vector2.new(Config.Hub.Center.X, Config.Hub.Center.Z)
 local HUB_TOP = Config.Hub.Center.Y + Config.Hub.Height / 2 + Config.Hub.DomeRadius + SHELL
 local BASE_TOP = HUB_FLOOR + BASE.CaveHeight + BASE.DomeRadius + SHELL
 local PASSAGE_TOP = HUB_FLOOR + BASE.PassageHeight + BASE.PassageWidth / 2 + SHELL
 
-local function nearPassage(p: Vector2, layout, extra: number): boolean
-	local a = Vector2.new(layout.hubMouth.X, layout.hubMouth.Z)
-	local ab = Vector2.new(layout.baseMouth.X, layout.baseMouth.Z) - a
-	local t = math.clamp((p - a):Dot(ab) / ab:Dot(ab), 0, 1)
-	return (p - (a + ab * t)).Magnitude <= BASE.PassageWidth / 2 + extra
+-- Datos de cada cueva-base en números sueltos (shellRange se llama por cada columna de voxels: sin crear vectores).
+local BASES_XZ = {}
+for _, layout in BaseLayout.All do
+	local ax, az = layout.hubMouth.X, layout.hubMouth.Z
+	local bx, bz = layout.baseMouth.X - ax, layout.baseMouth.Z - az
+	table.insert(BASES_XZ, { x = layout.floor.X, z = layout.floor.Z, ax = ax, az = az, bx = bx, bz = bz, len2 = bx * bx + bz * bz })
+end
+local HUB_X, HUB_Z = Config.Hub.Center.X, Config.Hub.Center.Z
+local SHELL_REACH = BASE.RingRadius + BASE.CaveRadius + SHELL -- más lejos del centro no hay caparazón
+
+-- ¿(x, z) está a menos de PassageWidth / 2 + extra del eje del pasaje de esa base?
+local function nearPassage(x: number, z: number, b, extra: number): boolean
+	local px, pz = x - b.ax, z - b.az
+	local t = math.clamp((px * b.bx + pz * b.bz) / b.len2, 0, 1)
+	local dx, dz = px - b.bx * t, pz - b.bz * t
+	local r = BASE.PassageWidth / 2 + extra
+	return dx * dx + dz * dz <= r * r
 end
 
 local function shellRange(x: number, z: number): (number?, number?)
-	local p = Vector2.new(x, z)
+	local hx, hz = x - HUB_X, z - HUB_Z
+	local d2 = hx * hx + hz * hz
+	if d2 > SHELL_REACH * SHELL_REACH then return nil, nil end
 	local top: number? = nil
-	if (p - HUB_XZ).Magnitude <= Config.Hub.Radius + SHELL then top = HUB_TOP end
-	for _, layout in BaseLayout.All do
-		if (p - Vector2.new(layout.floor.X, layout.floor.Z)).Magnitude <= BASE.CaveRadius + SHELL then
+	if d2 <= (Config.Hub.Radius + SHELL) ^ 2 then top = HUB_TOP end
+	local caveR2 = (BASE.CaveRadius + SHELL) ^ 2
+	for _, b in BASES_XZ do
+		local dx, dz = x - b.x, z - b.z
+		if dx * dx + dz * dz <= caveR2 then
 			top = math.max(top or -math.huge, BASE_TOP)
-		elseif nearPassage(p, layout, SHELL) then
+		elseif nearPassage(x, z, b, SHELL) then
 			top = math.max(top or -math.huge, PASSAGE_TOP)
 		end
 	end
@@ -151,18 +168,17 @@ end
 
 -- ¿Un punto (x, z) cae sobre las cuevas de arriba (con su caparazón)? Para alejar de ahí las entradas de la superficie.
 local function overCaves(x: number, z: number, extra: number): boolean
-	local p = Vector2.new(x, z)
-	if (p - HUB_XZ).Magnitude <= Config.Hub.Radius + SHELL + extra then return true end
-	for _, layout in BaseLayout.All do
-		if (p - Vector2.new(layout.floor.X, layout.floor.Z)).Magnitude <= BASE.CaveRadius + SHELL + extra
-			or nearPassage(p, layout, SHELL + extra)
-		then
+	local hx, hz = x - HUB_X, z - HUB_Z
+	if hx * hx + hz * hz <= (Config.Hub.Radius + SHELL + extra) ^ 2 then return true end
+	for _, b in BASES_XZ do
+		local dx, dz = x - b.x, z - b.z
+		if dx * dx + dz * dz <= (BASE.CaveRadius + SHELL + extra) ^ 2 or nearPassage(x, z, b, SHELL + extra) then
 			return true
 		end
 	end
 	return false
 end
-local generatedDepth = 0 -- hasta qué profundidad ya hay terreno (crece mientras se genera)
+local generatedDepth = 0 -- la capa 1 está generada hasta aquí (lo profundo se genera por celdas, ver ensureBox)
 
 -- Ruta principal (entrada inicial y túneles entre arenas): Route.luau le pone rieles, cables y letreros.
 -- stop = el tramo termina en una parada (la cámara de cruce o una arena): ahí va una estación de carritos
@@ -170,12 +186,16 @@ type Segment = { from: Vector3, to: Vector3, radius: number, stop: boolean }
 local route: { Segment } = {}
 
 -- Genera las filas [jA, jB] de un bloque de CHUNK x CHUNK. stats[capa] = { aire, total } para ajustar las cuevas.
+-- Es el bucle más caro de la generación: funciones y Enums en locales, sin crear tablas por voxel, y los ruidos solo
+-- donde cambian el resultado.
+local AIR, ROCK, GROUND = Enum.Material.Air, Enum.Material.Rock, Enum.Material.Ground
+local noise, abs, clamp, min, max, sqrt = math.noise, math.abs, math.clamp, math.min, math.max, math.sqrt
 local function generateChunk(x0: number, z0: number, jA: number, jB: number, stats)
 	local n = CHUNK / RES
 	local f = Config.NoiseScale
 	local mats, occs = table.create(n), table.create(n)
 	local z1, z2, z3, dz2 = table.create(n), table.create(n), table.create(n), table.create(n)
-	local heights = table.create(n) -- altura de la superficie por columna (i, k)
+	local heights = table.create(n, 0) -- altura de la superficie por columna (i, k)
 	local shellLow, shellHigh = table.create(n), table.create(n) -- rango sellado por columna (caparazón de las cuevas)
 	local zs = table.create(n)
 	for k = 1, n do
@@ -183,17 +203,24 @@ local function generateChunk(x0: number, z0: number, jA: number, jB: number, sta
 		zs[k], z1[k], z2[k], z3[k] = z, z * f + o1[3], z * f + o2[3], z * f + o3[3]
 		dz2[k] = (z - Config.PitCenter.Y) ^ 2
 	end
+	-- el relieve solo importa si las filas llegan a la superficie, y el caparazón solo si llegan a su altura
+	local yTop = -Config.Depth + jB * RES
+	local needSurface, needShell = yTop > -8, yTop >= SHELL_BOTTOM
+	-- una franja toca a lo más dos capas: material de la roca por columna para cada una (se calcula al necesitarlo)
+	local layerA, layerB = rowLayer[jA], rowLayer[jB]
+	local matA, matB = table.create(n), table.create(n)
+	local pitR, pitRagged = Config.PitRadius, Config.PitRagged
 	for i = 1, n do
-		local mi, oi = table.create(jB - jA + 1), table.create(jB - jA + 1)
+		local rows = jB - jA + 1
+		local mi, oi = table.create(rows), table.create(rows)
 		mats[i], occs[i] = mi, oi
 		local x = x0 + (i - 0.5) * RES
 		local x1, x2, x3 = x * f + o1[1], x * f + o2[1], x * f + o3[1]
 		local dx2 = (x - Config.PitCenter.X) ^ 2
-		local colMats = table.create(n) -- material de la roca por columna y capa (se calcula al necesitarlo)
 		for k = 1, n do
-			heights[k] = surfaceHeight(x, zs[k])
-			shellLow[k], shellHigh[k] = shellRange(x, zs[k])
-			colMats[k] = {}
+			if needSurface then heights[k] = surfaceHeight(x, zs[k]) end
+			if needShell then shellLow[k], shellHigh[k] = shellRange(x, zs[k]) end
+			matA[k], matB[k] = nil, nil
 		end
 		for j = jA, jB do
 			local y = -Config.Depth + (j - 0.5) * RES
@@ -201,56 +228,74 @@ local function generateChunk(x0: number, z0: number, jA: number, jB: number, sta
 			local mj, oj = table.create(n), table.create(n)
 			mi[j - jA + 1], oi[j - jA + 1] = mj, oj
 			local width, thr, layer, common = rowWidth[j], rowThr[j], rowLayer[j], rowCommon[j]
+			local caveRow = y < CAVE_TOP and y > CAVES_BOTTOM_Y
+			local pitRow = y > CORE_FLOOR and y < HUB_FLOOR + RES
+			local belowHub = y < HUB_FLOOR
+			local air = 0
 			for k = 1, n do
 				local ground = heights[k]
 				local below = ground - y -- profundidad bajo la superficie (con montañas)
-				local occ = math.clamp(below / RES + 0.5, 0, 1)
+				local occ = clamp(below / RES + 0.5, 0, 1)
 				if occ > 0 then
 					local r2 = dx2 + dz2[k]
-					local low = shellLow[k]
-					local sealed = (r2 < PIT_SEAL2 and y < HUB_FLOOR) -- roca maciza alrededor del pozo (sin atajos)
-						or (low ~= nil and y >= low and y <= shellHigh[k]) -- caparazón de las cuevas de arriba
-					if r2 < PIT_NEAR2 and y > CORE_FLOOR and y < HUB_FLOOR + RES then
+					if pitRow and r2 < PIT_NEAR2 then
 						-- pozo vertical con paredes irregulares: aire dentro del radio
-						local edge = Config.PitRadius + Config.PitRagged * math.noise(x * PIT_NOISE + o4[1], y * PIT_NOISE * 0.5 + o4[2], zs[k] * PIT_NOISE + o4[3])
-						occ = math.min(occ, math.clamp((math.sqrt(r2) - edge) / RES + 0.5, 0, 1))
+						local edge = pitR + pitRagged * noise(x * PIT_NOISE + o4[1], y * PIT_NOISE * 0.5 + o4[2], zs[k] * PIT_NOISE + o4[3])
+						occ = min(occ, clamp((sqrt(r2) - edge) / RES + 0.5, 0, 1))
 					end
-					-- cuevas solo en la capa 1, por debajo de la cámara de cruce y cerca del pozo
-					if occ > 0 and y < CAVE_TOP and y > CAVES_BOTTOM_Y and r2 < CAVE_R2 and not sealed then
-						-- negativo = aire (cueva), positivo = roca
-						local tunnel = math.max(math.abs(math.noise(x1, y1, z1[k])), math.abs(math.noise(x2, y2, z2[k]))) - width
-						local cavern = thr - math.noise(x3, y3, z3[k])
-						occ = math.min(occ, math.clamp(math.min(tunnel, cavern) * CAVE_SHARP + 0.5, 0, 1))
+					-- cuevas solo en la capa 1, por debajo de la cámara de cruce, cerca del pozo y fuera de lo sellado
+					-- (el caparazón del pozo y el de las cuevas de arriba)
+					if occ > 0 and caveRow and r2 < CAVE_R2 and not (r2 < PIT_SEAL2 and belowHub) then
+						local low = shellLow[k]
+						if not (low ~= nil and y >= low and y <= shellHigh[k]) then
+							-- negativo = aire (cueva), positivo = roca; se saltan los ruidos que no cambian el resultado
+							local tunnel = abs(noise(x1, y1, z1[k])) - width
+							if tunnel * CAVE_SHARP < 0.5 then -- si el primero ya da roca maciza, el máximo también
+								tunnel = max(tunnel, abs(noise(x2, y2, z2[k])) - width)
+							end
+							if tunnel * CAVE_SHARP + 0.5 <= 0 then
+								occ = 0 -- túnel: aire, sin importar la caverna
+							else
+								local cavern = thr - noise(x3, y3, z3[k])
+								occ = min(occ, clamp(min(tunnel, cavern) * CAVE_SHARP + 0.5, 0, 1))
+							end
+						end
 					end
 				end
-				if y < 0 then
-					local s = stats[layer]
-					s[2] += 1
-					if occ < 0.5 then s[1] += 1 end
-				end
+				if occ < 0.5 then air += 1 end
 				if occ <= 0.01 then
-					mj[k], oj[k] = Enum.Material.Air, 0
+					mj[k], oj[k] = AIR, 0
 				else
-					-- tierra en la superficie llana; roca desnuda en las montañas
-					if below < 5 then
-						mj[k] = if ground > 26 then Enum.Material.Rock else Enum.Material.Ground
+					if below < 5 then -- tierra en la superficie llana; roca desnuda en las montañas
+						mj[k] = if ground > 26 then ROCK else GROUND
 					elseif common then
 						mj[k] = NEUTRAL
-					else
-						local m = colMats[k][layer]
+					elseif layer == layerA then
+						local m = matA[k]
 						if not m then
 							m = BiomeMap.Biome(x, zs[k], layer).Material
-							colMats[k][layer] = m
+							matA[k] = m
+						end
+						mj[k] = m
+					else
+						local m = matB[k]
+						if not m then
+							m = BiomeMap.Biome(x, zs[k], layer).Material
+							matB[k] = m
 						end
 						mj[k] = m
 					end
 					oj[k] = occ
 				end
 			end
+			if stats and y < 0 then
+				local s = stats[layer]
+				s[1] += air
+				s[2] += n
+			end
 		end
 	end
 	local yBottom = -Config.Depth + (jA - 1) * RES
-	local yTop = -Config.Depth + jB * RES
 	Terrain:WriteVoxels(Region3.new(Vector3.new(x0, yBottom, z0), Vector3.new(x0 + CHUNK, yTop, z0 + CHUNK)), RES, mats, occs)
 end
 
@@ -314,33 +359,172 @@ end
 local SURFACE_SKIN = 12
 local SURFACE_J = (Config.Depth - SURFACE_SKIN) / RES + 1
 
--- Genera la franja de profundidades [fromDepth, toDepth) en todo el mundo (fromDepth = 0 incluye la superficie).
--- Solo la zona de cuevas, el pozo y la piel de la superficie se calculan voxel a voxel; el resto es roca maciza y se
--- rellena por bloques (mucho más rápido, sobre todo con el mapa grande).
-local function generateBand(fromDepth: number, toDepth: number, stats)
-	local jB = if fromDepth <= 0 then NY else (Config.Depth - fromDepth) / RES
-	local jA = (Config.Depth - toDepth) / RES + 1
-	local caveZone = fromDepth < Config.CaveZoneDepth
-	for x0 = -Config.HalfSize, Config.HalfSize - CHUNK, CHUNK do
-		for z0 = -Config.HalfSize, Config.HalfSize - CHUNK, CHUNK do
-			if chunkNearPit(x0, z0) or (caveZone and chunkNearCaves(x0, z0)) then
-				generateChunk(x0, z0, jA, jB, stats) -- cuevas o pozo: voxel a voxel
-				task.wait()
-			elseif fromDepth <= 0 then
-				-- superficie lejos de las cuevas: solo la piel del relieve voxel a voxel; debajo, bloques
-				generateChunk(x0, z0, SURFACE_J, jB, stats)
-				fillSolidChunk(x0, z0, SURFACE_SKIN, toDepth)
-				task.wait()
-			else
-				fillSolidChunk(x0, z0, fromDepth, toDepth)
-			end
-		end
-		task.wait()
-	end
-	generatedDepth = toDepth
-	print(`[World] terreno generado hasta {toDepth} de {Config.Depth}`)
+-- Generación por celdas ------------------------------------------------------------
+-- El mundo se divide en celdas de CHUNK x CHUNK x BandHeight. Para ahorrar memoria y tiempo, solo se genera lo que hace
+-- falta: al inicio, la capa 1 cerca del centro (cuevas, cueva del foso y cuevas-base); en segundo plano, la columna
+-- del pozo completa (se ve desde todos los hubs); y el resto, cuando un jugador se acerca (ensureBox). Una celda
+-- generada nunca se vuelve a generar (no taparía lo excavado). Antes de tallar algo (minas, hubs) se aseguran sus celdas.
+local CHUNKS = Config.HalfSize * 2 / CHUNK -- celdas por lado
+local BANDS = Config.Depth / Config.BandHeight
+local TOP_RADIUS = BASE.RingRadius + BASE.CaveRadius + SHELL + 30 -- lo que se genera al inicio en la capa 1
+local cellDone: { [number]: boolean } = {}
+local deepCells: { [number]: { { number } } } = {} -- [capa] = { { x0, z0, profundidad de arriba, de abajo } } ya generadas
+local onDeepCell: ((x0: number, z0: number, top: number, bottom: number, layer: number) -> ())? = nil -- siembra minerales
+
+local function cellKey(cx: number, cz: number, band: number): number
+	return cx + cz * CHUNKS + band * CHUNKS * CHUNKS
 end
 
+-- distancia horizontal del pozo al punto más cercano del bloque
+local function chunkDistance(x0: number, z0: number): number
+	local px, pz = Config.PitCenter.X, Config.PitCenter.Y
+	local dx = math.max(x0 - px, 0, px - (x0 + CHUNK))
+	local dz = math.max(z0 - pz, 0, pz - (z0 + CHUNK))
+	return math.sqrt(dx * dx + dz * dz)
+end
+
+-- La roca profunda recién generada se anota (para sembrar y reponer minerales) y recibe sus vetas.
+local function registerDeep(x0: number, z0: number, fromDepth: number, toDepth: number)
+	if toDepth <= Config.CaveZoneDepth then return end
+	for i, layer in Config.Layers do
+		local top, bottom = math.max(fromDepth, layerTop(i)), math.min(toDepth, layer.MaxDepth)
+		if i > 1 and bottom > top then
+			deepCells[i] = deepCells[i] or {}
+			table.insert(deepCells[i], { x0, z0, top, bottom })
+			if onDeepCell then onDeepCell(x0, z0, top, bottom, i) end
+		end
+	end
+end
+
+-- filas de voxels [jA, jB] de un tramo de profundidades [top, bottom) (múltiplos de RES)
+local function rowsOf(top: number, bottom: number): (number, number)
+	return (Config.Depth - bottom) / RES + 1, (Config.Depth - top) / RES
+end
+local CAVE_TOP_DEPTH = math.floor(-CAVE_TOP / RES) * RES - RES -- más arriba no hay cuevas naturales
+local PIT_TOP_DEPTH = math.floor(-HUB_FLOOR / RES) * RES - RES -- el pozo empieza en el piso de la cueva del foso
+
+-- bloques que tocan la columna del pozo (bajo la zona de cuevas se generan juntos, ver generatePitBand)
+local PIT_CHUNKS = {}
+for cx = 0, CHUNKS - 1 do
+	for cz = 0, CHUNKS - 1 do
+		if chunkNearPit(-Config.HalfSize + cx * CHUNK, -Config.HalfSize + cz * CHUNK) then table.insert(PIT_CHUNKS, { cx, cz }) end
+	end
+end
+
+-- Bajo la zona de cuevas, el pozo no se calcula voxel a voxel: los bloques que lo rodean se rellenan de roca y el pozo
+-- se talla con un cilindro y huecos redondos en la pared (borde irregular). Todos los bloques de la franja van juntos,
+-- para que ninguno tape después lo tallado.
+local function generatePitBand(band: number)
+	local fromDepth, toDepth = band * Config.BandHeight, (band + 1) * Config.BandHeight
+	for _, c in PIT_CHUNKS do
+		local key = cellKey(c[1], c[2], band)
+		if not cellDone[key] then
+			cellDone[key] = true
+			local x0, z0 = -Config.HalfSize + c[1] * CHUNK, -Config.HalfSize + c[2] * CHUNK
+			fillSolidChunk(x0, z0, fromDepth, toDepth)
+			registerDeep(x0, z0, fromDepth, toDepth)
+		end
+	end
+	local top, bottom = fromDepth, math.min(toDepth, -CORE_FLOOR)
+	if bottom <= top then return end
+	local pit = Config.PitCenter
+	Terrain:FillCylinder(CFrame.new(pit.X, -(top + bottom) / 2, pit.Y), bottom - top, Config.PitRadius, Enum.Material.Air)
+	local rng = Random.new(seed + 1000 + band)
+	for depth = top + 5, bottom - 2, 9 do
+		for _ = 1, 5 do
+			local a = rng:NextNumber(0, math.pi * 2)
+			local r = Config.PitRadius - 1
+			Terrain:FillBall(Vector3.new(pit.X + math.cos(a) * r, -depth, pit.Y + math.sin(a) * r), rng:NextNumber(3, Config.PitRagged + 1), Enum.Material.Air)
+		end
+	end
+end
+
+-- Genera una celda. Solo se calcula voxel a voxel lo que lo necesita (la piel de la superficie y, en la zona de
+-- cuevas, las profundidades donde puede haber cuevas o pozo); el resto es roca maciza y se rellena por bloques (mucho
+-- más rápido). Devuelve si hizo trabajo voxel a voxel (para repartirlo en frames).
+local function generateCell(cx: number, cz: number, band: number, stats): boolean
+	local key = cellKey(cx, cz, band)
+	if cellDone[key] then return false end
+	local x0, z0 = -Config.HalfSize + cx * CHUNK, -Config.HalfSize + cz * CHUNK
+	local fromDepth, toDepth = band * Config.BandHeight, (band + 1) * Config.BandHeight
+	local pit = chunkNearPit(x0, z0)
+	if pit and fromDepth >= Config.CaveZoneDepth then
+		generatePitBand(band)
+		return false
+	end
+	cellDone[key] = true
+	local voxel = false
+	local solidFrom = fromDepth
+	if fromDepth <= 0 and Config.SurfaceRelief then -- piel de la superficie (relieve y montañas)
+		generateChunk(x0, z0, SURFACE_J, NY, stats)
+		solidFrom = SURFACE_SKIN
+		voxel = true
+	end
+	-- tramo voxel a voxel: donde puede haber cuevas (o el pozo) dentro de la zona de cuevas
+	local vTop, vBottom = math.huge, -math.huge
+	if fromDepth < Config.CaveZoneDepth and (pit or chunkNearCaves(x0, z0)) then
+		vTop, vBottom = if pit then math.min(CAVE_TOP_DEPTH, PIT_TOP_DEPTH) else CAVE_TOP_DEPTH, Config.CaveZoneDepth
+	end
+	local a = math.clamp(vTop, solidFrom, toDepth)
+	local b = math.clamp(vBottom, a, toDepth)
+	if a > solidFrom then fillSolidChunk(x0, z0, solidFrom, a) end
+	if b > a then
+		local jA, jB = rowsOf(a, b)
+		generateChunk(x0, z0, jA, jB, stats)
+		voxel = true
+	end
+	if toDepth > b then fillSolidChunk(x0, z0, b, toDepth) end
+	registerDeep(x0, z0, fromDepth, toDepth)
+	return voxel
+end
+-- Genera todas las celdas que tocan la caja [low, high] (lo que falte). Devuelve cuántas generó.
+local function ensureBox(low: Vector3, high: Vector3, stats): number
+	local function cell(v: number, n: number): number return math.clamp(v, 0, n - 1) end
+	local cx0, cx1 = cell(math.floor((low.X + Config.HalfSize) / CHUNK), CHUNKS), cell(math.floor((high.X + Config.HalfSize) / CHUNK), CHUNKS)
+	local cz0, cz1 = cell(math.floor((low.Z + Config.HalfSize) / CHUNK), CHUNKS), cell(math.floor((high.Z + Config.HalfSize) / CHUNK), CHUNKS)
+	local b0, b1 = cell(math.floor(math.max(-high.Y, 0) / Config.BandHeight), BANDS), cell(math.floor(math.max(-low.Y, 0) / Config.BandHeight), BANDS)
+	local made = 0
+	for band = b0, b1 do
+		for cx = cx0, cx1 do
+			for cz = cz0, cz1 do
+				if not cellDone[cellKey(cx, cz, band)] then
+					if generateCell(cx, cz, band, stats) then task.wait() end -- lo voxel a voxel, repartido en frames
+					made += 1
+				end
+			end
+		end
+	end
+	return made
+end
+
+-- Generación inicial: la capa 1 cerca del centro (todo lo que se ve desde las cuevas de arriba y la zona de cuevas).
+local function generateStart(stats)
+	for band = 0, Config.ReadyDepth / Config.BandHeight - 1 do
+		for cx = 0, CHUNKS - 1 do
+			for cz = 0, CHUNKS - 1 do
+				local x0, z0 = -Config.HalfSize + cx * CHUNK, -Config.HalfSize + cz * CHUNK
+				if chunkDistance(x0, z0) < TOP_RADIUS and generateCell(cx, cz, band, stats) then task.wait() end
+			end
+			task.wait()
+		end
+	end
+	generatedDepth = Config.ReadyDepth
+end
+
+-- En segundo plano: la columna del pozo hasta el núcleo (se ve desde todos los hubs).
+local function generatePitColumn(stats)
+	for band = 0, BANDS - 1 do
+		for cx = 0, CHUNKS - 1 do
+			for cz = 0, CHUNKS - 1 do
+				local x0, z0 = -Config.HalfSize + cx * CHUNK, -Config.HalfSize + cz * CHUNK
+				if chunkNearPit(x0, z0) then
+					generateCell(cx, cz, band, stats)
+					task.wait()
+				end
+			end
+		end
+	end
+end
 -- túnel recto (cilindro) con una cámara al final, para entrar al subsuelo
 local function tunnel(from: Vector3, to: Vector3, radius: number, chamber: number)
 	local mid = (from + to) / 2
@@ -638,6 +822,7 @@ export type Mine = {
 	layer: number,
 	camp: boolean,
 	gallery: boolean?, -- tramo de una galería de un hub (sin letrero de sector)
+	failed: boolean?, -- no se pudo tallar (no se reintenta)
 	center: Vector3, -- suelo de la sala central
 	tunnels: { MineTunnel },
 	rooms: { MineRoom },
@@ -746,18 +931,21 @@ local function carveMine(mine: Mine)
 	mine.carved = true
 end
 
--- Talla las minas que ya caben en la zona generada (de a pocas por frame).
-local function carveReadyMines()
-	local done = 0
-	for _, mine in mines do
-		if not mine.carved and mine.bottomDepth <= generatedDepth then
-			carveMine(mine)
-			done += 1
-			if done % 8 == 0 then task.wait() end
-		end
+-- Caja que ocupa una mina (para generar sus celdas antes de tallarla).
+local function mineBounds(mine: Mine): (Vector3, Vector3)
+	local low, high = mine.center, mine.center
+	local function add(p: Vector3, pad: number, up: number)
+		low = low:Min(p - Vector3.new(pad, 4, pad))
+		high = high:Max(p + Vector3.new(pad, up, pad))
 	end
+	for _, room in mine.rooms do add(room.center, math.max(room.size.X, room.size.Z), room.size.Y * 1.4) end
+	for _, t in mine.tunnels do
+		add(t.from, t.width, t.height + 4)
+		add(t.to, t.width, t.height + 4)
+	end
+	if mine.shaft then add(mine.shaft.from, 6, mine.shaft.height + 4) end
+	return low, high
 end
-
 -- Hubs de las capas ---------------------------------------------------------------
 -- Una caverna alrededor del pozo en cada capa (shared/HubLayout; la de la capa 1 es la cueva del foso): el pozo queda
 -- abierto en medio (LayerHubs le pone baranda y elevador). Cada hub tiene el túnel corto de su estación de carritos y,
@@ -808,6 +996,8 @@ local function carveGalleries(hub)
 				rooms = if n == pieces then rooms else {}, shaft = nil,
 				seed = rng:NextInteger(1, 1e9), bottomDepth = 0, carved = false,
 			}
+			local low, high = mineBounds(gallery)
+			ensureBox(low, high)
 			carveMine(gallery)
 			table.insert(mines, gallery)
 		end
@@ -817,19 +1007,15 @@ local function carveGalleries(hub)
 	end
 end
 
--- Talla los hubs de las capas que ya están generadas enteras (las minas de la capa ya están talladas).
-local function carveReadyHubs()
-	for i, hub in HubLayout.All do
-		if not hub.main and not hubCarved[i] and generatedDepth >= Config.Layers[i].MaxDepth then
-			carveCavern(hub.center + Vector3.yAxis * (hub.height / 2), hub.radius, hub.height, hub.domeRadius)
-			carveStationTunnel(hub)
-			carveGalleries(hub)
-			hubCarved[i] = true
-			task.wait()
-		end
-	end
+-- Talla el hub de una capa profunda (primero genera sus celdas; sus galerías aseguran las suyas).
+local function carveLayerHub(hub)
+	local reach = hub.radius + 60
+	ensureBox(hub.center - Vector3.new(reach, 20, reach), hub.center + Vector3.new(reach, hub.height + hub.domeRadius + 10, reach))
+	carveCavern(hub.center + Vector3.yAxis * (hub.height / 2), hub.radius, hub.height, hub.domeRadius)
+	carveStationTunnel(hub)
+	carveGalleries(hub)
+	hubCarved[hub.layer] = true
 end
-
 -- El núcleo: una esfera incandescente al fondo del pozo, visible desde la superficie.
 local function buildCore()
 	local core = Instance.new("Part")
@@ -944,12 +1130,14 @@ end
 
 local CAVE_LAYER_BOTTOM = Config.CaveZoneDepth -- solo la zona de cuevas tiene cuevas (las primeras capas)
 
--- capa elegida por peso entre las ya generadas y más hondas que `minDepth`; nil si no hay
+-- capa elegida por peso entre las que ya tienen algo generado (la 1 al inicio; las profundas, por celdas) y más hondas
+-- que `minDepth`; nil si no hay
 local function pickLayer(rng: Random, minDepth: number?): number?
 	local low = math.max(minDepth or 8, 8)
 	local weights = {}
 	for i, layer in Config.Layers do
-		if layerTop(i) < generatedDepth and layer.MaxDepth > low then weights[i] = layer.SpawnWeight end
+		local ready = if i == 1 then generatedDepth > 0 else deepCells[i] ~= nil
+		if ready and layer.MaxDepth > low then weights[i] = layer.SpawnWeight end
 	end
 	if next(weights) == nil then return nil end
 	return pickWeighted(rng, weights)
@@ -966,13 +1154,6 @@ end
 -- punto (x, z) al azar dentro del radio de cuevas, alrededor del pozo
 local function pointNearPit(rng: Random, margin: number): (number, number)
 	local a, r = rng:NextNumber(0, math.pi * 2), math.sqrt(rng:NextNumber(0, 1)) * (Config.CaveRadius - margin)
-	return Config.PitCenter.X + math.cos(a) * r, Config.PitCenter.Y + math.sin(a) * r
-end
-
--- punto (x, z) al azar hasta `radius` del pozo, fuera de su caparazón
-local function pointInRadius(rng: Random, radius: number): (number, number)
-	local inner = Config.PitRadius + Config.PitRagged + Config.PitSeal + 10
-	local a, r = rng:NextNumber(0, math.pi * 2), inner + math.sqrt(rng:NextNumber(0, 1)) * (radius - inner)
 	return Config.PitCenter.X + math.cos(a) * r, Config.PitCenter.Y + math.sin(a) * r
 end
 
@@ -1007,13 +1188,13 @@ local function placeCluster(rng: Random, hit: RaycastResult): number
 	return count
 end
 
--- Veta: varios minerales juntos incrustados en la roca maciza de una capa profunda (bajo la zona de cuevas) (se encuentran excavando; su brillo
--- se nota un poco a través de la roca). Devuelve cuántos puso.
-local function placeVein(rng: Random, i: number, minDepth: number?): number
-	local d = depthInLayer(rng, i, minDepth)
-	if not d then return 0 end
-	local x, z = pointInRadius(rng, Config.VeinRadius)
-	local center = Vector3.new(x, -d, z)
+-- Veta: varios minerales juntos incrustados en la roca maciza de una capa profunda, dentro de una celda ya generada
+-- ({ x0, z0, profundidad de arriba, de abajo }); se encuentran excavando y su brillo se nota un poco a través de la
+-- roca. Devuelve cuántos puso.
+local function placeVeinIn(rng: Random, cell: { number }, i: number): number
+	local x0, z0, top, bottom = cell[1], cell[2], cell[3], cell[4]
+	if bottom - top < 16 then return 0 end
+	local center = Vector3.new(rng:NextNumber(x0 + 8, x0 + CHUNK - 8), -rng:NextNumber(top + 8, bottom - 8), rng:NextNumber(z0 + 8, z0 + CHUNK - 8))
 	if not canDig(center, 6) then return 0 end -- nunca dentro de zonas protegidas (el pozo y su caparazón)
 	local count = 0
 	for _ = 1, rng:NextInteger(2, 5) do
@@ -1024,14 +1205,27 @@ local function placeVein(rng: Random, i: number, minDepth: number?): number
 	return count
 end
 
--- Un grupo en el suelo de una mina ya tallada de la capa `i` (en una sala o en una galería). Devuelve cuántos puso.
-local function placeMineMinerals(rng: Random, i: number): number
-	local list = minesByLayer[i]
-	if not list or #list == 0 then return 0 end
-	local mine = list[rng:NextInteger(1, #list)]
-	if not mine.carved then return 0 end
+-- Veta en una celda generada al azar de la capa `i`.
+local function placeVein(rng: Random, i: number): number
+	local cells = deepCells[i]
+	if not cells then return 0 end
+	return placeVeinIn(rng, cells[rng:NextInteger(1, #cells)], i)
+end
+
+-- Un grupo en el suelo de una mina ya tallada (`mine`, o una al azar de la capa `i`), en una sala o en una galería.
+-- Devuelve cuántos puso.
+local function placeMineMinerals(rng: Random, i: number, mine: Mine?): number
+	if not mine then
+		local list = minesByLayer[i]
+		if not list or #list == 0 then return 0 end
+		for _ = 1, 6 do -- una ya tallada (las demás todavía no existen)
+			local pick = list[rng:NextInteger(1, #list)]
+			if pick.carved then mine = pick break end
+		end
+	end
+	if not mine or not mine.carved then return 0 end
 	local p
-	if rng:NextNumber() < 0.5 then
+	if rng:NextNumber() < 0.5 and #mine.rooms > 0 then
 		local room = mine.rooms[rng:NextInteger(1, #mine.rooms)]
 		local spread = math.min(room.size.X, room.size.Z) * 0.3
 		p = room.center + Vector3.new(rng:NextNumber(-spread, spread), 4, rng:NextNumber(-spread, spread))
@@ -1044,7 +1238,8 @@ local function placeMineMinerals(rng: Random, i: number): number
 end
 
 -- Llena el pool hasta `cap` minerales (o `limit` grupos): en la capa 1, grupos sobre el suelo de las cuevas; más
--- abajo, vetas dentro de la roca. Un intento fallido no corta el llenado.
+-- abajo (solo en lo ya generado), parte en el suelo de las minas y el resto en vetas dentro de la roca. Un intento
+-- fallido no corta el llenado.
 local function fillMinerals(rng: Random, limit: number, cap: number, minDepth: number?)
 	local have = #CollectionService:GetTagged("Mineral")
 	local misses = 0
@@ -1055,9 +1250,8 @@ local function fillMinerals(rng: Random, limit: number, cap: number, minDepth: n
 			local hit = randomCavePoint(rng, i, minDepth)
 			if hit then placed = placeCluster(rng, hit) end
 		elseif i then
-			-- capas profundas: parte en el suelo de las minas, el resto en vetas dentro de la roca
 			if rng:NextNumber() < Config.Mines.MineralShare then placed = placeMineMinerals(rng, i) end
-			if placed == 0 then placed = placeVein(rng, i, minDepth) end
+			if placed == 0 then placed = placeVein(rng, i) end
 		end
 		if placed > 0 then
 			have += placed
@@ -1173,22 +1367,18 @@ return {
 		phase("plan de minas", planMines)
 		local entrances = {}
 		local starter: Vector3? = nil
-		local depth = 0
 
-		-- 1) Zona de arriba, antes de dejar entrar a nadie.
+		-- 1) La capa 1 cerca del centro, antes de dejar entrar a nadie (lo demás se genera por celdas, ver ensureBox).
 		phase("terreno inicial", function()
 			Terrain:Clear()
-			while depth < Config.ReadyDepth do
-				generateBand(depth, depth + Config.BandHeight, stats)
-				depth += Config.BandHeight
-			end
+			generateStart(stats)
 		end)
 		phase("entradas", function() entrances = carveEntrances() end)
 		phase("base", function()
-				starter = carveHub()
-				carveStationTunnel(HubLayout.Get(1)) -- estación de carritos de la cueva del foso
-				hubCarved[1] = true
-			end)
+			starter = carveHub()
+			carveStationTunnel(HubLayout.Get(1)) -- estación de carritos de la cueva del foso
+			hubCarved[1] = true
+		end)
 		phase("arenas", function() carveReadyArenas(arenas, entrances, starter) end)
 		phase("núcleo", buildCore)
 		phase("bordes", buildBorders)
@@ -1201,7 +1391,6 @@ return {
 		lightFolder.Name = "CaveLights"
 		lightFolder.Parent = workspace
 		local rng = Random.new(seed + 1) -- misma distribución inicial todo el día
-		local readyShare = Config.ReadyDepth / Config.Depth
 		phase("minerales de la meseta", function()
 			spawnSurfaceMinerals(rng, Config.SurfaceMinerals, nil, 0)
 		end)
@@ -1214,8 +1403,9 @@ return {
 		phase("minerales de las cuevas", function()
 			fillMinerals(rng, math.huge, math.floor(Config.MineralCount * Config.InitialMineralShare))
 		end)
-		phase("luces", function() spawnLights(rng, math.floor(Config.LightCount * readyShare)) end)
-		print(`[World] semilla {seed}, zona inicial lista en {string.format("%.1f", os.clock() - t0)} s, {#CollectionService:GetTagged("Mineral")} minerales`)
+		phase("luces", function() spawnLights(rng, Config.LightCount) end)
+		local s1 = stats[1]
+		print(`[World] semilla {seed}, capa 1 lista en {string.format("%.1f", os.clock() - t0)} s ({string.format("%.0f", 100 * s1[1] / math.max(s1[2], 1))}% de aire), {#CollectionService:GetTagged("Mineral")} minerales`)
 
 		-- Todos aparecen (o reaparecen) en el spawn, incluso quien haya salido antes de tiempo y caído al vacío.
 		Players.CharacterAutoLoads = true
@@ -1226,43 +1416,112 @@ return {
 
 		-- las explosiones de minerales excavan en Excavation.luau (respetando la dureza y las zonas protegidas)
 
-		-- 2) El resto, hacia el núcleo, mientras se juega.
+		-- 2) En segundo plano: la columna del pozo hasta el núcleo y la cámara del núcleo.
 		task.spawn(function()
-			local furnished = {}
-			for _, arena in arenas do
-				if arena.carved then furnished[arena] = true end
+			phase("pozo", function() generatePitColumn(stats) end)
+			phase("cámara del núcleo", function()
+				local core = arenas[#arenas]
+				if core and core.isCore and not core.carved then
+					carveArena(core)
+					furnishArena(core)
+				end
+			end)
+			print(`[World] pozo completo hasta el núcleo en {string.format("%.1f", os.clock() - t0)} s`)
+		end)
+
+		-- 3) Bajo demanda: alrededor de cada jugador se generan las celdas que falten, se tallan las minas y los hubs
+		-- cercanos y se siembran minerales en la roca nueva (todo lo lejano no existe hasta que alguien llegue).
+		local spec = Config.Generation
+		local seedRng = Random.new(seed + 41)
+		onDeepCell = function(x0, z0, top, bottom, i)
+			if #CollectionService:GetTagged("Mineral") >= Config.MineralCount then return end
+			local expected = Config.Layers[i].SpawnWeight * spec.VeinsPerWeight * (bottom - top) / Config.BandHeight
+			for _ = 1, math.floor(expected + seedRng:NextNumber()) do
+				placeVeinIn(seedRng, { x0, z0, top, bottom }, i)
 			end
-			while depth < Config.Depth do
-				phase("terreno profundo", function()
-					generateBand(depth, math.min(depth + Config.BandHeight, Config.Depth), stats)
-				end)
-				depth = math.min(depth + Config.BandHeight, Config.Depth)
-				phase("minas", carveReadyMines)
-				phase("hubs", carveReadyHubs)
-				phase("arenas profundas", function()
-					carveReadyArenas(arenas, entrances, starter)
-					for _, arena in arenas do
-						if arena.carved and not furnished[arena] then
-							furnished[arena] = true
-							furnishArena(arena)
+		end
+		local function generateNear(pos: Vector3)
+			local reach = Vector3.new(spec.Radius, spec.Vertical, spec.Radius)
+			ensureBox(pos - reach, pos + reach, stats)
+			for _, mine in mines do
+				if not mine.carved and not mine.failed and (mine.center - pos).Magnitude < spec.MineRange then
+					local ok, err = pcall(function()
+						local low, high = mineBounds(mine)
+						ensureBox(low, high, stats)
+						carveMine(mine)
+						if #CollectionService:GetTagged("Mineral") < Config.MineralCount then
+							for _ = 1, seedRng:NextInteger(1, 3) do placeMineMinerals(seedRng, mine.layer, mine) end
+						end
+					end)
+					if not ok then
+						mine.failed = true
+						warn(`[World] no se pudo tallar la mina {mine.id}: {err}`)
+					end
+				end
+			end
+			for i, hub in HubLayout.All do
+				if not hub.main and not hubCarved[i] and (hub.center - pos).Magnitude < spec.HubRange then
+					phase(`hub de la capa {i}`, function() carveLayerHub(hub) end)
+					hubCarved[i] = true -- aunque falle, no reintentar cada vez
+				end
+			end
+		end
+		-- Con el tope de minerales lleno, los de las capas profundas lejos de todos los jugadores se reciclan, para que la
+		-- roca nueva (donde sí hay jugadores) reciba los suyos.
+		local function recycleMinerals(positions: { Vector3 })
+			local all = CollectionService:GetTagged("Mineral")
+			local excess = #all - math.floor(Config.MineralCount * spec.RecycleTo)
+			if #all < Config.MineralCount * spec.RecycleAt or excess <= 0 then return end
+			for _, mineral in all do
+				if excess <= 0 then break end
+				local pos = (mineral :: PVInstance):GetPivot().Position
+				if pos.Y < -Config.CaveZoneDepth and mineral:IsDescendantOf(mineralFolder) then
+					local far = true
+					for _, p in positions do
+						if (p - pos).Magnitude < spec.RecycleDistance then far = false break end
+					end
+					if far then
+						mineral:Destroy()
+						excess -= 1
+					end
+				end
+			end
+		end
+		task.spawn(function()
+			local ticks = 0
+			local checkedAt: { [any]: Vector3 } = {} -- dónde se revisó por última vez a cada jugador
+			while true do
+				task.wait(spec.Interval)
+				ticks += 1
+				local positions = {}
+				local present = {}
+				for _, p in Players:GetPlayers() do
+					local root = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+					if root then
+						local pos = root.Position
+						table.insert(positions, pos)
+						present[p] = true
+						-- solo si se movió lo suficiente desde la última revisión (quieto no hay nada nuevo que generar)
+						local last = checkedAt[p]
+						if not last or (pos - last).Magnitude >= spec.Recheck then
+							checkedAt[p] = pos
+							phase("cerca de jugadores", function() generateNear(pos) end)
 						end
 					end
-				end)
+				end
+				for p in checkedAt do
+					if not present[p] then checkedAt[p] = nil end
+				end
+				if ticks % 10 == 0 then phase("reciclaje de minerales", function() recycleMinerals(positions) end) end
 			end
-			phase("minerales profundos", function() fillMinerals(rng, math.huge, Config.MineralCount, Config.ReadyDepth) end)
-			phase("luces profundas", function()
-				spawnLights(rng, Config.LightCount - math.floor(Config.LightCount * readyShare), Config.ReadyDepth)
-			end)
-			print(`[World] mundo completo en {string.format("%.1f", os.clock() - t0)} s: {#arenas} arenas, {#mines} minas, {#CollectionService:GetTagged("Mineral")} minerales`)
-			for i, s in stats do
-				print(`[World] capa {i}: {string.format("%.0f", 100 * s[1] / math.max(s[2], 1))}% de aire`)
-			end
+		end)
 
+		-- 4) Reposición de minerales (en la capa 1 y en lo ya generado de las demás).
+		task.spawn(function()
 			local respawnRng = Random.new()
 			while true do
 				task.wait(Config.RespawnInterval)
 				phase("reposición", function() fillMinerals(respawnRng, Config.RespawnBatch, Config.MineralCount) end)
 			end
-		end)
-	end,
+		end)	end,
 }

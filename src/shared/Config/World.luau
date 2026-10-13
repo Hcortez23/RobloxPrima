@@ -10,10 +10,10 @@ local Config = {
 	-- FallenPartsDestroyHeight en default.project.json (unos 800 por debajo, en negativo)
 	LayerHeight = 800, -- alto de cada capa (Config/Biomes define 10 capas, con 4 biomas cada una)
 
-	-- Generación progresiva: se genera por franjas de arriba hacia abajo. Los jugadores entran cuando está lista
-	-- ReadyDepth; lo más profundo se genera en segundo plano mientras juegan (nadie llega tan rápido allá abajo).
-	-- Bajo la zona de cuevas la roca es maciza y se rellena por bloques enteros (mucho más rápido que voxel a voxel).
-	BandHeight = 200, -- alto de cada franja (múltiplo de 4)
+	-- Generación por celdas (128 x 128 x BandHeight): antes de dejar entrar se genera la capa 1 cerca del centro (hasta
+	-- ReadyDepth); la columna del pozo se completa en segundo plano y el resto se genera alrededor de los jugadores
+	-- (Generation, más abajo). La roca maciza se rellena por bloques enteros (mucho más rápido que voxel a voxel).
+	BandHeight = 200, -- alto de cada celda (múltiplo de 4)
 	ReadyDepth = 800, -- profundidad generada antes de dejar entrar (múltiplo de BandHeight): toda la zona de cuevas
 
 	-- El gran pozo: tubo estrecho y vertical desde el piso de la cueva del foso hasta el núcleo, tapado por una rejilla
@@ -26,6 +26,9 @@ local Config = {
 	SpawnPosition = Vector3.new(0, -149, -75), -- spawn general en la cueva del foso, entre dos pasajes (cada jugador aparece en su cueva-base)
 
 	-- Relieve de la superficie: el centro queda plano, con lomas suaves, y hacia los bordes se levantan montañas.
+	-- Apagado mientras la superficie no sea accesible (nadie la ve): sin él, arriba queda roca plana en y = 0 y la
+	-- generación inicial es bastante más rápida.
+	SurfaceRelief = false,
 	MountainHeight = 110, -- altura máxima de las montañas (múltiplo de 4)
 	MountainStart = 0.45, -- fracción de HalfSize desde el centro donde empiezan a subir
 	MountainScale = 1 / 90, -- tamaño de las formas de las montañas (más bajo = montañas más anchas)
@@ -117,7 +120,23 @@ local Config = {
 		ShaftHeight = { 30, 70 },
 		MineralShare = 0.5, -- parte de los minerales de las capas profundas que aparece dentro de las minas (el resto, en vetas)
 	},
-	VeinRadius = 860, -- las vetas de las capas profundas se reparten hasta esta distancia del pozo
+	-- Generación bajo demanda (server/Features/World): fuera de la capa 1 cerca del centro y de la columna del pozo, el
+	-- terreno se genera solo alrededor de los jugadores (ahorra mucha memoria y tiempo). Cada celda de roca profunda que
+	-- se genera recibe vetas de minerales según el SpawnWeight de su capa.
+	Generation = {
+		Radius = 240, -- distancia horizontal alrededor de cada jugador que tiene que estar generada
+		Vertical = 280, -- y hacia arriba y abajo
+		MineRange = 380, -- a esta distancia se tallan las minas (con su utilería, ver Mines)
+		HubRange = 480, -- y los hubs de las capas
+		Interval = 0.4, -- segundos entre revisiones
+		Recheck = 24, -- un jugador se vuelve a revisar cuando se movió al menos esto (quieto no cuesta nada)
+		VeinsPerWeight = 0.05, -- vetas por celda completa = SpawnWeight de la capa * esto (capa 2: ~1; capa 10: ~0.25)
+		-- con más de RecycleAt * MineralCount minerales, se quitan los de las capas profundas a más de RecycleDistance
+		-- de todos los jugadores hasta bajar a RecycleTo * MineralCount (así la roca nueva siempre recibe los suyos)
+		RecycleAt = 0.9,
+		RecycleTo = 0.7,
+		RecycleDistance = 450,
+	},
 
 	CarveFactor = 0.6, -- las explosiones de minerales excavan con radio = ExplosionRadius * CarveFactor / raíz(Hardness)
 

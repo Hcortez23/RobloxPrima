@@ -4,7 +4,8 @@
 -- rieles hacia arriba lleva de vuelta a la base. El suelo y el techo se encuentran con rayos contra el terreno.
 local World = require(script.Parent.World)
 
-local STEP = 4 -- studs entre durmientes
+local STEP = 3 -- studs entre muestras del suelo y del techo
+local SLEEPER_EVERY = 2 -- un durmiente cada tantas muestras
 local SIGN_EVERY = 60 -- studs entre letreros
 local GAUGE = 1.6 -- media separación entre rieles
 
@@ -56,8 +57,47 @@ local function sign(pos: Vector3, facing: Vector3, front: string, back: string)
 	end
 end
 
--- Marca un tramo y devuelve la distancia acumulada y los puntos del suelo por donde van los rieles (los usan los
--- carritos, Carts.luau).
+-- Simplifica una línea de puntos (Ramer-Douglas-Peucker): quita los puntos que se desvían menos de `tolerance` del
+-- tramo recto entre sus vecinos. Así los rieles y el cable van en pocas piezas largas en vez de una cada pocos studs.
+local function simplify(points: { Vector3 }, tolerance: number): { Vector3 }
+	if #points <= 2 then return points end
+	local keep = table.create(#points, false)
+	keep[1], keep[#points] = true, true
+	local stack = { { 1, #points } }
+	while #stack > 0 do
+		local range = table.remove(stack)
+		local first, last = range[1], range[2]
+		local a, b = points[first], points[last]
+		local ab = b - a
+		local lengthSq = ab:Dot(ab)
+		local worst, worstIndex = 0, nil
+		for k = first + 1, last - 1 do
+			local ap = points[k] - a
+			local t = if lengthSq > 0 then math.clamp(ap:Dot(ab) / lengthSq, 0, 1) else 0
+			local d = (ap - ab * t).Magnitude
+			if d > worst then worst, worstIndex = d, k end
+		end
+		if worstIndex and worst > tolerance then
+			keep[worstIndex] = true
+			table.insert(stack, { first, worstIndex })
+			table.insert(stack, { worstIndex, last })
+		end
+	end
+	local result = {}
+	for k, p in points do
+		if keep[k] then table.insert(result, p) end
+	end
+	return result
+end
+
+-- piezas entre puntos consecutivos de una línea
+local function chain(name: string, points: { Vector3 }, thickness: number, color: Color3, material: Enum.Material)
+	for k = 2, #points do
+		between(name, points[k - 1], points[k], thickness, color, material)
+	end
+end
+
+-- Marca un tramo y devuelve la distancia acumulada y los puntos del suelo por donde van los rieles.
 local function markSegment(seg, distanceSoFar: number): (number, { Vector3 })
 	local floorPoints = {}
 	local axis = seg.to - seg.from
@@ -68,43 +108,43 @@ local function markSegment(seg, distanceSoFar: number): (number, { Vector3 })
 	if flat.Magnitude < 0.05 then return distanceSoFar + length, floorPoints end -- tramo vertical: sin rieles
 	local side = flat.Unit:Cross(Vector3.yAxis).Unit
 
-	local lastFloor, lastCeiling = nil, nil
+	local rails = { {}, {} }
+	local cable = {}
+	local sample = 0
 	for d = STEP / 2, length, STEP do
+		sample += 1
 		local center = seg.from + dir * d
 		local floorHit = workspace:Raycast(center, Vector3.yAxis * -(seg.radius + 6), terrainOnly)
 		local ceilingHit = workspace:Raycast(center, Vector3.yAxis * (seg.radius + 6), terrainOnly)
 		if floorHit then
 			local floor = floorHit.Position + Vector3.yAxis * 0.15
 			table.insert(floorPoints, floorHit.Position)
-			part("Sleeper", Vector3.new(GAUGE * 2 + 1.4, 0.3, 0.8), CFrame.lookAt(floor, floor + flat), SLEEPER, Enum.Material.WoodPlanks, false)
-			if lastFloor then
-				for _, s in { -1, 1 } do
-					between("Rail", lastFloor + side * (s * GAUGE) + Vector3.yAxis * 0.3, floor + side * (s * GAUGE) + Vector3.yAxis * 0.3, 0.3, RAIL, Enum.Material.Metal)
-				end
+			if sample % SLEEPER_EVERY == 0 then
+				part("Sleeper", Vector3.new(GAUGE * 2 + 1.4, 0.3, 0.8), CFrame.lookAt(floor, floor + flat), SLEEPER, Enum.Material.WoodPlanks, false)
 			end
-			lastFloor = floor
+			table.insert(rails[1], floor - side * GAUGE + Vector3.yAxis * 0.3)
+			table.insert(rails[2], floor + side * GAUGE + Vector3.yAxis * 0.3)
 		end
 		if ceilingHit then
-			local cable = ceilingHit.Position - Vector3.yAxis * 1.2 + side * 2
-			if lastCeiling then
-				between("Cable", lastCeiling, cable, 0.25, CABLE, Enum.Material.SmoothPlastic)
-			end
-			if math.floor(d / STEP) % 5 == 0 then -- foco pequeño, solo neón (sin luz que ilumine de más)
-				local bulb = part("CableBulb", Vector3.one * 0.6, CFrame.new(cable - Vector3.yAxis * 0.4), BULB, Enum.Material.Neon, false)
+			local point = ceilingHit.Position - Vector3.yAxis * 1.2 + side * 2
+			table.insert(cable, point)
+			if sample % (5 * SLEEPER_EVERY) == 0 then -- foco pequeño, solo neón (sin luz que ilumine de más)
+				local bulb = part("CableBulb", Vector3.one * 0.6, CFrame.new(point - Vector3.yAxis * 0.4), BULB, Enum.Material.Neon, false)
 				bulb.Shape = Enum.PartType.Ball
 			end
 			local total = distanceSoFar + d
 			if math.floor(total / SIGN_EVERY) ~= math.floor((total - STEP) / SIGN_EVERY) then
-				local signPos = ceilingHit.Position - Vector3.yAxis * 3
 				-- "▲ BASE" para quien viene de lo profundo, de regreso; "▲ DESCENSO" para quien va bajando
-				sign(signPos, flat, "▲ BASE", "▲ DESCENSO")
+				sign(ceilingHit.Position - Vector3.yAxis * 3, flat, "▲ BASE", "▲ DESCENSO")
 			end
-			lastCeiling = cable
 		end
 	end
+	for _, rail in rails do
+		chain("Rail", simplify(rail, 0.25), 0.3, RAIL, Enum.Material.Metal)
+	end
+	chain("Cable", simplify(cable, 0.6), 0.25, CABLE, Enum.Material.SmoothPlastic)
 	return distanceSoFar + length, floorPoints
 end
-
 local Route = {
 	-- Paths[k] = puntos del suelo del tramo k de World.Route, en orden desde la cueva del foso hacia abajo.
 	-- Listo cuando workspace.RouteReady = true.

@@ -32,7 +32,7 @@
         "FallenPartsDestroyHeight": -8800,
         "StreamingEnabled": true,
         "StreamingMinRadius": 128,
-        "StreamingTargetRadius": 512
+        "StreamingTargetRadius": 384
       }
     },
     "Lighting": {

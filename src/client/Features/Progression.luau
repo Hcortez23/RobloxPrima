@@ -18,6 +18,7 @@ local function label(parent: Instance, props: { [string]: any }): TextLabel
 	l.Font = Enum.Font.GothamBold
 	l.TextScaled = true
 	l.TextColor3 = Color3.new(1, 1, 1)
+	l.Text = "" -- sin el "Label" por defecto de Roblox
 	for k, v in props do (l :: any)[k] = v end
 	local stroke = Instance.new("UIStroke")
 	stroke.Thickness = 1.5
@@ -138,6 +139,7 @@ local function elevator(gui: ScreenGui)
 	fade.ZIndex = 10
 	fade.Parent = gui
 	local fadeText = label(fade, { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(600, 34), ZIndex = 11, TextTransparency = 1, TextColor3 = HAZARD })
+	fadeText.Visible = false -- solo durante el viaje (el contorno no se desvanece con el texto)
 
 	remote.OnClientEvent:Connect(function(action: string, a, b)
 		if action == "open" then
@@ -173,12 +175,14 @@ local function elevator(gui: ScreenGui)
 			menu.Visible = true
 		elseif action == "travel" then
 			fadeText.Text = `Elevador → CAPA {a} · {b}`
+			fadeText.Visible = true
 			local inInfo, outInfo = TweenInfo.new(0.6), TweenInfo.new(0.8)
 			TweenService:Create(fade, inInfo, { BackgroundTransparency = 0 }):Play()
 			TweenService:Create(fadeText, inInfo, { TextTransparency = 0 }):Play()
 			task.delay(1.8, function()
 				TweenService:Create(fade, outInfo, { BackgroundTransparency = 1 }):Play()
 				TweenService:Create(fadeText, outInfo, { TextTransparency = 1 }):Play()
+				task.delay(0.8, function() fadeText.Visible = false end)
 			end)
 		end
 	end)

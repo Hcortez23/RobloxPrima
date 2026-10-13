@@ -281,11 +281,12 @@ local function buildBase(layout): Base
 		deco(model, "BeltArrow", Vector3.new(0.8, 0.05, 0.8), at(LANE_X, 6.23, z + 3) * CFrame.Angles(0, math.rad(45), 0), color, Enum.Material.Neon)
 	end
 
-	-- mural de exhibición: pedestales a la derecha de la entrada (los usará Mural)
+	-- mural de exhibición: marcas en el piso a la derecha de la entrada, de frente al centro (+X local); los estands
+	-- con los minerales los arma Mural.luau encima de cada una
 	for slot = 1, Config.MuralSlots do
-		local pedestal = part(model, "MuralSlot", Vector3.new(2.4, 3, 2.4), at(-26, 1.5, -125 + (slot - 1) * 6), DARK, Enum.Material.Metal)
-		pedestal:SetAttribute("Slot", slot)
-		deco(model, "MuralSlotLight", Vector3.new(2, 0.2, 2), pedestal.CFrame * CFrame.new(0, 1.6, 0), color, Enum.Material.Neon)
+		local anchor = deco(model, "MuralSlot", Vector3.new(1, 0.2, 1), at(-26, 0.1, -127 + (slot - 1) * 7) * CFrame.Angles(0, -math.pi / 2, 0), DARK, Enum.Material.Metal)
+		anchor.Transparency = 1
+		anchor:SetAttribute("Slot", slot)
 	end
 
 	-- panel de estadísticas a la izquierda de la entrada, mirando hacia quien entra
