@@ -19,7 +19,7 @@ local NEON_CYAN = Color3.fromRGB(80, 200, 255)
 local LAMP = Color3.fromRGB(255, 214, 160)
 
 local folder: Folder
-local toSpawnCave, gate, spawnCave -- se definen más abajo (las usan wallPipes y build)
+local toSpawnCave, gate, spawnCave, descentPortal -- se definen más abajo (las usan wallPipes y build)
 
 local function part(name: string, size: Vector3, cframe: CFrame, color: Color3, material: Enum.Material, shape: Enum.PartType?): Part
 	local p = Instance.new("Part")
@@ -31,6 +31,7 @@ local function part(name: string, size: Vector3, cframe: CFrame, color: Color3, 
 	p.Material = material
 	p.Shape = shape or Enum.PartType.Block
 	p.TopSurface, p.BottomSurface = Enum.SurfaceType.Smooth, Enum.SurfaceType.Smooth
+	p.CanTouch = false -- utilería: sin eventos de contacto (rendimiento)
 	p.Parent = folder
 	return p
 end
@@ -241,6 +242,57 @@ function gate()
 	end
 end
 
+-- Portal de la entrada inicial (la única salida de la cueva del foso hacia abajo): marco con franjas de advertencia,
+-- viga con neón verde, balizas y el letrero "DESCENSO", para que se vea desde toda la cueva.
+function descentPortal()
+	local dir = HUB.ExitDown.Unit
+	local side = dir:Cross(Vector3.yAxis).Unit
+	local up = Vector3.yAxis
+	local opening = HUB.TunnelRadius
+	local half = opening + 3
+	local height = opening * 2 + 4
+	local base = CENTER + dir * (HUB.Radius - opening - 8)
+	local go = Color3.fromRGB(90, 255, 140)
+
+	for _, s in { -1, 1 } do
+		local postPos = base + side * (s * half) + up * (height / 2)
+		part("PortalPost", Vector3.new(4, height, 6), CFrame.lookAt(postPos, postPos + dir), DARK, Enum.Material.Metal)
+		for band = 1, math.floor(height / 5) do
+			local bandPos = base + side * (s * half) + up * (band * 5 - 2)
+			local stripe = part("PortalStripe", Vector3.new(4.2, 1.6, 6.2), CFrame.lookAt(bandPos, bandPos + dir), if band % 2 == 0 then DARK else HAZARD, Enum.Material.SmoothPlastic)
+			stripe.CanCollide = false
+		end
+		local strip = part("PortalLight", Vector3.new(0.6, height - 4, 0.6), CFrame.lookAt(postPos - side * (s * 2.3), postPos - side * (s * 2.3) + dir), go, Enum.Material.Neon)
+		strip.CanCollide = false
+		local beaconPos = base + side * (s * half) + up * (height + 1.5)
+		local beacon = part("PortalBeacon", Vector3.one * 2.4, CFrame.new(beaconPos), Color3.fromRGB(255, 70, 50), Enum.Material.Neon, Enum.PartType.Ball)
+		light(beacon, "PointLight", { Color = beacon.Color, Range = 18, Brightness = 1.5, Shadows = false })
+	end
+	local beamPos = base + up * (height + 1)
+	local beam = part("PortalBeam", Vector3.new(half * 2 + 4, 3, 6), CFrame.lookAt(beamPos, beamPos + dir), RUST, Enum.Material.CorrodedMetal)
+	local beamLight = part("PortalBeamLight", Vector3.new(half * 2, 0.6, 0.6), beam.CFrame * CFrame.new(0, -1.7, -2.6), go, Enum.Material.Neon)
+	beamLight.CanCollide = false
+	light(beamLight, "PointLight", { Color = go, Range = 30, Brightness = 1.6, Shadows = false })
+
+	-- letrero mirando hacia la cueva
+	local signPos = base + up * (height + 6)
+	local sign = part("PortalSign", Vector3.new(half * 2, 4.5, 1), CFrame.lookAt(signPos, signPos - dir), DARK, Enum.Material.Metal)
+	local gui = Instance.new("SurfaceGui")
+	gui.Face = Enum.NormalId.Front
+	gui.LightInfluence = 0
+	gui.Brightness = 2
+	gui.PixelsPerStud = 40
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundTransparency = 1
+	label.Font = Enum.Font.GothamBlack
+	label.TextScaled = true
+	label.TextColor3 = go
+	label.Text = "DESCENSO"
+	label.Parent = gui
+	gui.Parent = sign
+end
+
 -- Cueva de la base (spawn): por ahora iluminación; el piso queda libre para las bases y las tiendas.
 function spawnCave()
 	local spec = Config.SpawnCave
@@ -259,11 +311,11 @@ local function build()
 	grate()
 	spawnPad()
 	-- las salidas y el spawn quedan libres: torres y generadores entre ellos
-	-- ángulos desde +X hacia +Z: 0° salida de arriba, 90° salida de abajo, 270° spawn
-	for _, a in { 20, 60, 120, 160, 200, 340 } do
+	-- ángulos desde +X hacia +Z: 90° salida de abajo (portal DESCENSO), 225° pasaje a la cueva de la base
+	for _, a in { 10, 50, 130, 170, 280, 330 } do
 		floodlight(math.rad(a), HUB.Radius * 0.72)
 	end
-	for i, a in { 45, 135, 225, 315 } do
+	for i, a in { 30, 150, 265, 305 } do
 		generator(math.rad(a), HUB.Radius - 16, if i % 2 == 0 then NEON_CYAN else NEON_ORANGE)
 	end
 	wallPipes()
@@ -271,6 +323,7 @@ local function build()
 		hangingLamp(CENTER, math.rad(i * 45 + 22.5), if i % 2 == 0 then HUB.Radius * 0.45 else HUB.Radius * 0.75, 34)
 	end
 	gate()
+	descentPortal()
 	spawnCave()
 end
 
