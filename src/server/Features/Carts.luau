@@ -13,6 +13,7 @@ local Minerals = require(ReplicatedStorage.Shared.Config.Minerals)
 local HubLayout = require(ReplicatedStorage.Shared.HubLayout)
 local World = require(script.Parent.World)
 local Bases = require(script.Parent.Bases)
+local SignKit = require(script.Parent.SignKit)
 
 local DARK = Color3.fromRGB(48, 50, 56)
 local RUST = Color3.fromRGB(110, 62, 40)
@@ -148,15 +149,10 @@ local function buildStation(hub)
 	shutter.Parent = model
 	local blocker = part(model, "GateBlocker", Vector3.new(9, 12, 1), mouthFrame * CFrame.new(0, 6, -1.5), DARK, Enum.Material.SmoothPlastic)
 	blocker.Transparency, blocker.CanQuery = 1, false -- los carritos no chocan (son decoración); los jugadores sí
-	local signPart = part(model, "GateSign", Vector3.new(10, 2, 0.4), mouthFrame * CFrame.new(0, 12, 0.3), DARK, Enum.Material.Metal)
-	local gui = Instance.new("SurfaceGui")
-	gui.Face, gui.LightInfluence, gui.PixelsPerStud = Enum.NormalId.Back, 0, 40
-	local label = Instance.new("TextLabel")
-	label.Size, label.BackgroundTransparency = UDim2.fromScale(1, 1), 1
-	label.Font, label.TextScaled, label.TextColor3 = Enum.Font.GothamBlack, true, HAZARD
-	label.Text = "ENVÍOS A LA BASE"
-	label.Parent = gui
-	gui.Parent = signPart
+	-- letrero sobre la reja, mirando hacia el hub (de espaldas al túnel)
+	SignKit.Build(model, "GateSign", mouthFrame * CFrame.new(0, 12.6, 0.5) * CFrame.Angles(0, math.pi, 0), 10.4, 2.8, {
+		title = "ENVÍOS A LA BASE", sub = "SOLO CARRITOS", accent = HAZARD, glow = true,
+	})
 
 	local openValue = Instance.new("NumberValue") -- 0 = cerrada, 1 = abierta
 	openValue.Changed:Connect(function(v) shutter:PivotTo(closed * CFrame.new(0, v * 8.5, 0)) end)

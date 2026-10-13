@@ -1,17 +1,18 @@
--- Bases de los jugadores: cada una es una cueva propia (del tamaño de la antigua cueva de spawn) en un anillo alrededor
+-- Bases de los jugadores: cada una es una cueva propia en un anillo alrededor
 -- de la cueva del foso, unida a ella por un pasaje con arco. A cada jugador que entra le toca una libre y aparece
 -- (y reaparece) en ella. La disposición la calcula shared/BaseLayout; lo de dentro, server/Features/Bases.
 return {
 	Count = 8, -- cuántas bases (= jugadores que pueden tener base a la vez)
-	RingRadius = 450, -- distancia del centro de la cueva del foso al centro de cada cueva-base
-	CaveRadius = 140,
-	CaveHeight = 80, -- el piso queda a la misma altura que el de la cueva del foso
-	DomeRadius = 50,
+	RingRadius = 270, -- distancia del centro de la cueva del foso al centro de cada cueva-base (con 8 bases, al menos
+	-- (CaveRadius + 30) / sin(22.5°) para que no se toquen sus caparazones)
+	CaveRadius = 72,
+	CaveHeight = 42, -- el piso queda a la misma altura que el de la cueva del foso
+	DomeRadius = 30,
 	PassageWidth = 32, -- pasaje entre la cueva del foso y la cueva-base
 	PassageHeight = 26, -- paredes rectas; el techo abovedado agrega PassageWidth / 2
 	-- Almacén: un silo por cada tipo de mineral de Config/Minerals, en filas (sirve para ~100 tipos).
-	StorageColumns = 10,
-	StorageSpacing = Vector2.new(7, 9), -- separación entre silos (x, z)
+	StorageColumns = 12,
+	StorageSpacing = Vector2.new(6, 7.5), -- separación entre silos (x, z)
 	MuralSlots = 5, -- pedestales del mural de exhibición (ver Mural)
 	-- un color por base (arcos, neón y letreros); si hay más bases que colores, se repiten
 	Colors = {

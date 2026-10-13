@@ -6,10 +6,12 @@
 -- mira hacia +Z, así que su izquierda es +X y su derecha -X):
 --  · Arcos con el nombre del dueño en las dos bocas del pasaje.
 --  · Derecha: andén de carritos (los envíos de las estaciones de los hubs llegan directo al almacén; aquí el dueño
---    puede "Descargar minerales" a mano), tolva, grúa y cinta hacia el almacén; mural de exhibición (5 pedestales).
+--    puede "Descargar minerales" a mano), tolva y cinta hacia el almacén; mural de exhibición (5 estands).
 --  · Izquierda: panel grande de estadísticas mirando hacia la entrada.
---  · Al fondo, la nave de almacén: un silo por cada tipo de mineral de Config/Minerals, en filas (sirve para ~100 tipos),
---    con una barra de neón que se llena según lo guardado y una placa con nombre y cantidad.
+--  · En el centro, la nave de almacén: un silo por cada tipo de mineral de Config/Minerals, en filas (sirve para ~100
+--    tipos), con una barra de neón que se llena según lo guardado y una placa con nombre y cantidad.
+--  · La ambientación (paredes revestidas, techo con vigas y luz, pasarela, plataforma de mando al fondo, monumento,
+--    contenedores, estandartes con el nombre del dueño...) la arma BaseDecor.luau.
 --
 -- Datos (atributos del jugador; solo en memoria hasta que haya DataStore): Stored_<Mineral>, Stat_Carts, Stat_Captured,
 -- Stat_DeepestLayer. API: Bases.Get(player), Bases.All(), Bases.Deposit(player, counts, viaCart),
@@ -21,6 +23,8 @@ local BaseLayout = require(ReplicatedStorage.Shared.BaseLayout)
 local WorldConfig = require(ReplicatedStorage.Shared.Config.World)
 local Minerals = require(ReplicatedStorage.Shared.Config.Minerals)
 local Inventory = require(script.Parent.Inventory)
+local BaseDecor = require(script.Parent.BaseDecor)
+local SignKit = require(script.Parent.SignKit)
 
 local Config = BaseLayout.Config
 
@@ -44,8 +48,10 @@ local RAIL = Color3.fromRGB(96, 92, 90)
 
 local R = Config.CaveRadius
 local LANE_X = -8 -- eje del andén y de su vía (a la derecha de quien entra)
-local DOCK_Z = -95 -- donde se detiene el carrito
-local HALL_Z = -28 -- primera fila del almacén
+-- todo se mide desde la entrada (z = -R), así la distribución se adapta al tamaño de la cueva (Config.CaveRadius)
+local DOCK_Z = -R + 30 -- donde se detiene el carrito
+local HALL_Z = -12 -- primera fila del almacén (las filas crecen hacia el fondo)
+local MURAL_X, MURAL_Z, MURAL_STEP = -28, -R + 14, 6.5 -- primer estand del mural y separación hacia el fondo
 local SILO_H = 8
 local SILO_FILL = 6.5 -- alto máximo de la barra de llenado
 
@@ -59,7 +65,7 @@ export type Base = {
 	color: Color3,
 	owner: Player?,
 	board: { [string]: TextLabel },
-	silos: { [string]: { fill: Part, label: TextLabel, base: CFrame } },
+	silos: { [string]: { fill: Part, label: TextLabel, count: TextLabel, base: CFrame } },
 	prompt: ProximityPrompt,
 	ownerLabels: { TextLabel },
 }
@@ -87,23 +93,6 @@ local function deco(parent: Instance, name: string, size: Vector3, cframe: CFram
 	return p
 end
 
-local function surfaceText(parent: BasePart, face: Enum.NormalId, text: string, color: Color3, font: Enum.Font?): TextLabel
-	local gui = Instance.new("SurfaceGui")
-	gui.Face = face
-	gui.LightInfluence = 0
-	gui.PixelsPerStud = 40
-	local label = Instance.new("TextLabel")
-	label.Size = UDim2.fromScale(1, 1)
-	label.BackgroundTransparency = 1
-	label.Font = font or Enum.Font.GothamBlack
-	label.TextScaled = true
-	label.TextColor3 = color
-	label.Text = text
-	label.Parent = gui
-	gui.Parent = parent
-	return label
-end
-
 local function light(parent: Instance, color: Color3, range: number, brightness: number)
 	local l = Instance.new("PointLight")
 	l.Color, l.Range, l.Brightness, l.Shadows = color, range, brightness, false
@@ -115,9 +104,10 @@ local function column(parent: Instance, name: string, at: CFrame, height: number
 	return part(parent, name, Vector3.new(height, radius * 2, radius * 2), at * CFrame.new(0, height / 2, 0) * CFrame.Angles(0, 0, math.pi / 2), color, material, Enum.PartType.Cylinder)
 end
 
--- Arco de entrada: pilares con franjas, arco de metal con neón por dentro, clave y letrero (frente = nombre del dueño,
--- dorso = `backText`). `at` está a ras del piso, mirando hacia quien llega (su -Z es el frente del letrero).
-local function arch(model: Model, at: CFrame, color: Color3, backText: string): TextLabel
+-- Arco de entrada: pilares con franjas, arco de metal con neón por dentro, clave y un letrero colgado dentro del vano
+-- (frente = nombre del dueño, dorso = la salida al foso). `at` está a ras del piso, mirando hacia quien llega (su -Z es
+-- el frente del letrero). Devuelve el texto del nombre del dueño.
+local function arch(model: Model, at: CFrame, color: Color3, index: number): TextLabel
 	local width, height = Config.PassageWidth, Config.PassageHeight
 	local half = width / 2 + 2.5
 	for _, s in { -1, 1 } do
@@ -138,9 +128,19 @@ local function arch(model: Model, at: CFrame, color: Color3, backText: string): 
 		if k % 4 == 1 then light(glow, color, 20, 1) end
 	end
 	part(model, "Keystone", Vector3.new(6, 6, 8), center * CFrame.new(0, half + 1, 0), RUST, Enum.Material.CorrodedMetal)
-	local sign = part(model, "ArchSign", Vector3.new(width, 4, 1), center * CFrame.new(0, half + 7, 0), DARK, Enum.Material.Metal)
-	surfaceText(sign, Enum.NormalId.Back, backText, HAZARD)
-	return surfaceText(sign, Enum.NormalId.Front, "LIBRE", color)
+	-- el letrero cuelga dentro del vano (más arriba quedaría metido en la roca del techo del pasaje)
+	local signW, signH = width - 10, 5
+	local signY = height + 7
+	for _, s in { -1, 1 } do
+		local x = s * (signW / 2 - 1.5)
+		local top = height + math.sqrt(math.max(half * half - x * x, 0)) - 2.6 -- borde de adentro del arco
+		deco(model, "ArchSignChain", Vector3.new(0.18, top - (signY + signH / 2), 0.18), at * CFrame.new(x, (top + signY + signH / 2) / 2, 0), DARK, Enum.Material.Metal)
+	end
+	local sign = SignKit.Build(model, "ArchSign", at * CFrame.new(0, signY, 0), signW, signH, {
+		title = "LIBRE", sub = `BASE {index}`, accent = color, glow = true,
+		backTitle = "▲ FOSO", backSub = "SALIDA A LA CUEVA DEL FOSO",
+	})
+	return sign.title
 end
 
 -- Panel de estadísticas sobre dos patas (frente = -Z de `at`).
@@ -198,17 +198,6 @@ local function buildBoard(model: Model, at: CFrame, color: Color3): { [string]: 
 	return rows
 end
 
--- Lámpara colgando del techo de la cueva (la cadena se mide con un rayo).
-local function hangingLamp(model: Model, floor: Vector3)
-	local base = floor + Vector3.yAxis * 30
-	local hit = workspace:Raycast(base, Vector3.yAxis * 120, terrainOnly)
-	local length = math.max((if hit then hit.Position.Y else base.Y + 20) - base.Y, 1)
-	deco(model, "LampChain", Vector3.new(0.15, length, 0.15), CFrame.new(base + Vector3.yAxis * length / 2), DARK, Enum.Material.Metal)
-	deco(model, "Lamp", Vector3.new(2, 3, 3), CFrame.new(base) * CFrame.Angles(0, 0, math.pi / 2), RUST, Enum.Material.CorrodedMetal, Enum.PartType.Cylinder)
-	local bulb = deco(model, "LampBulb", Vector3.one * 1.6, CFrame.new(base - Vector3.yAxis * 1.2), LAMP, Enum.Material.Neon, Enum.PartType.Ball)
-	light(bulb, LAMP, 45, 1.6)
-end
-
 local function buildBase(layout): Base
 	local index = layout.index
 	local color = Config.Colors[(index - 1) % #Config.Colors + 1]
@@ -224,8 +213,8 @@ local function buildBase(layout): Base
 	-- arcos en las dos bocas del pasaje, con el frente hacia quien llega desde la cueva del foso
 	local hubArchPos = layout.hubMouth - outward * 6
 	local ownerLabels = {
-		arch(model, CFrame.lookAt(hubArchPos, hubArchPos - outward), color, "▲ FOSO"),
-		arch(model, at(0, 0, -R + 6), color, "▲ FOSO"),
+		arch(model, CFrame.lookAt(hubArchPos, hubArchPos - outward), color, index),
+		arch(model, at(0, 0, -R + 6), color, index),
 	}
 
 	-- andén: rieles desde la boca del pasaje hasta el tope, plataforma, tope con luz y aviso para descargar a mano
@@ -253,7 +242,7 @@ local function buildBase(layout): Base
 	prompt.RequiresLineOfSight = false
 	prompt.Parent = buffer
 
-	-- tolva detrás del tope y grúa pórtico sobre el andén
+	-- tolva detrás del tope
 	for _, cx in { -2.6, 2.6 } do
 		for _, cz in { -2.6, 2.6 } do
 			part(model, "HopperLeg", Vector3.new(0.6, 9, 0.6), at(LANE_X + cx, 4.5, DOCK_Z + 7 + cz), DARK, Enum.Material.Metal)
@@ -261,13 +250,6 @@ local function buildBase(layout): Base
 	end
 	part(model, "Hopper", Vector3.new(6, 3, 6), at(LANE_X, 10, DOCK_Z + 7), STEEL, Enum.Material.Metal)
 	part(model, "HopperNeck", Vector3.new(3, 2, 3), at(LANE_X, 7.8, DOCK_Z + 7), RUST, Enum.Material.CorrodedMetal)
-	for _, x in { LANE_X - 11, LANE_X + 11 } do
-		part(model, "CraneColumn", Vector3.new(1.2, 17, 1.2), at(x, 8.5, DOCK_Z - 6), HAZARD, Enum.Material.Metal)
-	end
-	part(model, "CraneBeam", Vector3.new(23.2, 1.2, 1.4), at(LANE_X, 17, DOCK_Z - 6), HAZARD, Enum.Material.Metal)
-	part(model, "CraneTrolley", Vector3.new(2.4, 1, 2), at(LANE_X, 15.9, DOCK_Z - 6), DARK, Enum.Material.Metal)
-	deco(model, "CraneCable", Vector3.new(0.15, 5, 0.15), at(LANE_X, 12.9, DOCK_Z - 6), RUBBER, Enum.Material.Metal)
-	deco(model, "CraneHook", Vector3.new(0.8, 1.2, 0.4), at(LANE_X, 9.8, DOCK_Z - 6), STEEL, Enum.Material.Metal)
 
 	-- cinta elevada de la tolva al almacén, con patas y flechas de neón
 	local beltFrom, beltTo = DOCK_Z + 11, HALL_Z - 7
@@ -284,13 +266,13 @@ local function buildBase(layout): Base
 	-- mural de exhibición: marcas en el piso a la derecha de la entrada, de frente al centro (+X local); los estands
 	-- con los minerales los arma Mural.luau encima de cada una
 	for slot = 1, Config.MuralSlots do
-		local anchor = deco(model, "MuralSlot", Vector3.new(1, 0.2, 1), at(-26, 0.1, -127 + (slot - 1) * 7) * CFrame.Angles(0, -math.pi / 2, 0), DARK, Enum.Material.Metal)
+		local anchor = deco(model, "MuralSlot", Vector3.new(1, 0.2, 1), at(MURAL_X, 0.1, MURAL_Z + (slot - 1) * MURAL_STEP) * CFrame.Angles(0, -math.pi / 2, 0), DARK, Enum.Material.Metal)
 		anchor.Transparency = 1
 		anchor:SetAttribute("Slot", slot)
 	end
 
 	-- panel de estadísticas a la izquierda de la entrada, mirando hacia quien entra
-	local board = buildBoard(model, at(28, 11.5, -100), color)
+	local board = buildBoard(model, at(26, 11.5, -R + 30), color)
 
 	-- nave de almacén: plataforma, columnas y vigas, y un silo por cada tipo de mineral
 	local cols = Config.StorageColumns
@@ -310,8 +292,7 @@ local function buildBase(layout): Base
 	end
 	part(model, "HallHeader", Vector3.new(hallW, 1.4, 1.4), at(0, 14.6, hallFront), RUST, Enum.Material.CorrodedMetal)
 	deco(model, "HallHeaderLight", Vector3.new(hallW - 2, 0.3, 0.3), at(0, 13.75, hallFront), color, Enum.Material.Neon)
-	local sign = part(model, "HallSign", Vector3.new(24, 3, 0.4), at(0, 17.5, hallFront), DARK, Enum.Material.Metal)
-	surfaceText(sign, Enum.NormalId.Front, "ALMACÉN", HAZARD)
+	SignKit.Build(model, "HallSign", at(0, 17.8, hallFront - 0.4), 20, 4.2, { title = "ALMACÉN", accent = SignKit.HAZARD, glow = true })
 	-- tubería sobre la nave que reparte el mineral de la cinta a cada fila
 	local feedFrom, feedTo = at(LANE_X, 12.5, hallFront + 2).Position, at(-hallW / 2 + 3, 12.5, hallFront + 2).Position
 	deco(model, "Feeder", Vector3.new(0.9, 0.9, (feedTo - feedFrom).Magnitude + 1), CFrame.lookAt((feedFrom + feedTo) / 2, feedTo), RUST, Enum.Material.CorrodedMetal)
@@ -330,35 +311,36 @@ local function buildBase(layout): Base
 		local fill = deco(model, "SiloFill", Vector3.new(0.8, 0.1, 0.2), base * CFrame.new(0, 0.6, -1.95), mineralColor, Enum.Material.Neon)
 		local window = deco(model, "SiloWindow", Vector3.new(1.1, SILO_FILL, 0.15), base * CFrame.new(0, 0.5 + SILO_FILL / 2, -2.08), Color3.fromRGB(180, 200, 220), Enum.Material.Glass)
 		window.Transparency = 0.55
-		local plate = part(model, "SiloPlate", Vector3.new(4.6, 1.8, 0.3), base * CFrame.new(0, 1, -2.7), DARK, Enum.Material.Metal)
-		local label = surfaceText(plate, Enum.NormalId.Front, "", mineralColor, Enum.Font.GothamBold)
+		local plate = SignKit.Build(model, "SiloPlate", base * CFrame.new(0, 1.2, -2.75), 4.4, 2.1, {
+			title = displayName(key), sub = "0", accent = mineralColor, bolts = false, depth = 0.25, subRatio = 0.42,
+		})
 		local dropLen = 14.2 - SILO_H - 2
 		deco(model, "SiloDrop", Vector3.new(0.6, dropLen, 0.6), base * CFrame.new(0, SILO_H + 2 + dropLen / 2, 0), RUST, Enum.Material.CorrodedMetal)
-		silos[key] = { fill = fill, label = label, base = base }
+		silos[key] = { fill = fill, label = plate.title, count = plate.sub, base = base }
 	end
 	for row = 0, rows - 1 do -- viga por fila, de donde cuelgan las bajantes
 		part(model, "RowBeam", Vector3.new(hallW, 0.8, 0.8), at(0, 14.6, HALL_Z + row * spacing.Y), STEEL, Enum.Material.Metal)
 	end
 
 	-- utilería junto al andén y la nave
-	for k, offset in { Vector3.new(-22, 1.5, -80), Vector3.new(-25, 1.5, -80), Vector3.new(-23.5, 4.5, -80), Vector3.new(36, 1.5, hallFront - 4) } do
+	for k, offset in { Vector3.new(20, 1.5, hallFront - 14), Vector3.new(23, 1.5, hallFront - 14), Vector3.new(21.5, 4.5, hallFront - 14), Vector3.new(36, 1.5, hallFront - 4) } do
 		part(model, "Crate", Vector3.new(3, 3, 3), at(offset.X, offset.Y, offset.Z) * CFrame.Angles(0, math.rad(k * 9), 0), WOOD, Enum.Material.WoodPlanks)
 	end
 	for k, x in { 18, 20.2, 22.4 } do
-		column(model, "Barrel", at(x, 0, -60 + (k % 2) * 1.5), 3.2, 1.1, if k == 2 then HAZARD else RUST, Enum.Material.CorrodedMetal)
+		column(model, "Barrel", at(x - 2, 0, hallFront - 8 + (k % 2) * 1.5), 3.2, 1.1, if k == 2 then HAZARD else RUST, Enum.Material.CorrodedMetal)
 	end
 
-	-- lámparas colgando del techo de la cueva
-	for k = 0, 5 do
-		local a = k * math.pi / 3 + 0.5
-		hangingLamp(model, at(math.cos(a) * 70, 0, math.sin(a) * 70).Position)
-	end
-	hangingLamp(model, at(0, 0, 0).Position)
-	hangingLamp(model, at(0, 0, -100).Position)
+	-- ambientación (paredes, techo con luces, pasarela, plataforma de mando, monumento, contenedores, estandartes...)
+	local decorLabels = BaseDecor.Build(model, frame, {
+		R = R, color = color, index = index, passageWidth = Config.PassageWidth,
+		laneX = LANE_X, dockZ = DOCK_Z, hallFront = hallFront, hallBack = hallBack, hallW = hallW,
+		muralX = MURAL_X, muralZ = MURAL_Z, muralStep = MURAL_STEP, muralSlots = Config.MuralSlots,
+	})
+	for _, label in decorLabels do table.insert(ownerLabels, label) end
 
 	-- spawn junto a la entrada, mirando hacia la base (+Z local)
-	local spawnPos = at(10, 0, -115).Position
-	deco(model, "Spawn", Vector3.new(4, 0.1, 4), CFrame.new(spawnPos + Vector3.yAxis * 0.05), color, Enum.Material.Neon).Transparency = 0.4
+	local spawnPos = at(10, 0, -R + 18).Position
+	deco(model, "Spawn", Vector3.new(4, 0.1, 4), CFrame.new(spawnPos + Vector3.yAxis * 0.36), color, Enum.Material.Neon).Transparency = 0.4 -- sobre la pasarela
 	local spawnAt = spawnPos + Vector3.yAxis * 3
 
 	local laneOffset = frame.RightVector * LANE_X
@@ -394,7 +376,8 @@ local function refresh(base: Base)
 		local height = math.max(SILO_FILL * math.clamp(math.log10(stored + 1) / 3, 0, 1), 0.1)
 		silo.fill.Size = Vector3.new(0.8, height, 0.2)
 		silo.fill.CFrame = silo.base * CFrame.new(0, 0.5 + height / 2, -1.95)
-		silo.label.Text = `{displayName(key)}\n{stored}`
+		silo.label.Text = displayName(key)
+		silo.count.Text = tostring(stored)
 	end
 	board.Title.Text = if player then `BASE · {player.DisplayName}` else "BASE LIBRE"
 	board.Total.Text = `Minerales guardados: {total}`

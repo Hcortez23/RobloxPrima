@@ -3,6 +3,7 @@
 -- luz propia) y letreros colgantes: "▲ BASE" mirando hacia lo profundo y "▲ DESCENSO" mirando hacia la base. Seguir los
 -- rieles hacia arriba lleva de vuelta a la base. El suelo y el techo se encuentran con rayos contra el terreno.
 local World = require(script.Parent.World)
+local SignKit = require(script.Parent.SignKit)
 
 local STEP = 3 -- studs entre muestras del suelo y del techo
 local SLEEPER_EVERY = 2 -- un durmiente cada tantas muestras
@@ -13,7 +14,6 @@ local RAIL = Color3.fromRGB(96, 92, 90)
 local SLEEPER = Color3.fromRGB(70, 52, 40)
 local CABLE = Color3.fromRGB(28, 28, 32)
 local BULB = Color3.fromRGB(255, 190, 90)
-local SIGN = Color3.fromRGB(40, 42, 48)
 local SIGN_TEXT = Color3.fromRGB(230, 180, 40)
 
 local folder: Folder
@@ -39,24 +39,10 @@ end
 
 -- placa colgante con un texto por cada cara: "front" lo ve quien mira hacia -facing, "back" quien mira hacia facing
 local function sign(pos: Vector3, facing: Vector3, front: string, back: string)
-	local plate = part("RouteSign", Vector3.new(7, 2.2, 0.4), CFrame.lookAt(pos, pos + facing), SIGN, Enum.Material.Metal, false)
-	for _, face in { { Enum.NormalId.Front, front }, { Enum.NormalId.Back, back } } do
-		local gui = Instance.new("SurfaceGui")
-		gui.Face = face[1]
-		gui.LightInfluence = 0.3
-		gui.PixelsPerStud = 40
-		local label = Instance.new("TextLabel")
-		label.Size = UDim2.fromScale(1, 1)
-		label.BackgroundTransparency = 1
-		label.Font = Enum.Font.GothamBlack
-		label.TextScaled = true
-		label.TextColor3 = SIGN_TEXT
-		label.Text = face[2]
-		label.Parent = gui
-		gui.Parent = plate
-	end
+	SignKit.Build(folder, "RouteSign", CFrame.lookAt(pos, pos + facing), 7, 2.6, {
+		title = front, sub = "DE REGRESO", backTitle = back, backSub = "HACIA LO PROFUNDO", accent = SIGN_TEXT, bolts = false,
+	})
 end
-
 -- Simplifica una línea de puntos (Ramer-Douglas-Peucker): quita los puntos que se desvían menos de `tolerance` del
 -- tramo recto entre sus vecinos. Así los rieles y el cable van en pocas piezas largas en vez de una cada pocos studs.
 local function simplify(points: { Vector3 }, tolerance: number): { Vector3 }

@@ -11,6 +11,7 @@ local ProgressionConfig = require(ReplicatedStorage.Shared.Config.Progression)
 local HubLayout = require(ReplicatedStorage.Shared.HubLayout)
 local World = require(script.Parent.World)
 local Progression = require(script.Parent.Progression)
+local SignKit = require(script.Parent.SignKit)
 
 local LAYERS = WorldConfig.Layers
 local DARK = Color3.fromRGB(48, 50, 56)
@@ -39,24 +40,6 @@ local function deco(parent: Instance, name: string, size: Vector3, cframe: CFram
 	local p = part(parent, name, size, cframe, color, material, shape)
 	p.CanCollide, p.CanQuery, p.CastShadow = false, false, false
 	return p
-end
-
-local function text(parent: BasePart, face: Enum.NormalId, value: string, color: Color3, font: Enum.Font?): TextLabel
-	local gui = Instance.new("SurfaceGui")
-	gui.Face = face
-	gui.LightInfluence = 0
-	gui.PixelsPerStud = 40
-	local label = Instance.new("TextLabel")
-	label.Size = UDim2.fromScale(1, 1)
-	label.BackgroundTransparency = 1
-	label.Font = font or Enum.Font.GothamBlack
-	label.TextScaled = true
-	label.TextColor3 = color
-	label.TextWrapped = true
-	label.Text = value
-	label.Parent = gui
-	gui.Parent = parent
-	return label
 end
 
 local function light(parent: Instance, color: Color3, range: number, brightness: number)
@@ -104,8 +87,9 @@ local function elevator(model: Model, hub, at: CFrame)
 	deco(model, "CabinPanelLight", Vector3.new(1, 0.4, 0.1), panel.CFrame * CFrame.new(0, 0.5, -0.25), GO, Enum.Material.Neon)
 	prompt(panel, "Usar elevador", "Elevador").Triggered:Connect(Progression.OpenElevator)
 	-- letrero sobre la puerta
-	local sign = part(model, "CabinSign", Vector3.new(w, 1.6, 0.3), at * CFrame.new(0, h + 1.2, -d / 2 + 0.2), DARK, Enum.Material.Metal)
-	text(sign, Enum.NormalId.Front, `ELEVADOR · CAPA {hub.layer}`, HAZARD)
+	SignKit.Build(model, "CabinSign", at * CFrame.new(0, h + 1.6, -d / 2 + 0.2), w - 0.4, 2.2, {
+		title = "ELEVADOR", sub = `CAPA {hub.layer}`, accent = HAZARD, glow = true,
+	})
 	-- guías y cable que bajan por el pozo detrás de la cabina (hacia el núcleo y hacia arriba)
 	local back = at * CFrame.new(0, 0, d / 2 + 1.5)
 	local top = if hub.main then 40 else hub.height + 20
@@ -119,19 +103,22 @@ end
 local function permitTerminal(model: Model, hub, at: CFrame)
 	local target = hub.layer + 1
 	part(model, "PermitBase", Vector3.new(4, 4, 2.4), at * CFrame.new(0, 2, 0), DARK, Enum.Material.Metal)
-	local screen = part(model, "PermitScreen", Vector3.new(4.4, 3, 0.4), at * CFrame.new(0, 5.4, 0.3) * CFrame.Angles(math.rad(-12), 0, 0), Color3.fromRGB(10, 12, 16), Enum.Material.SmoothPlastic)
 	deco(model, "PermitStripe", Vector3.new(4.1, 0.4, 2.5), at * CFrame.new(0, 3.2, 0), HAZARD, Enum.Material.SmoothPlastic)
-	local glow = deco(model, "PermitGlow", Vector3.new(4.6, 0.15, 0.2), screen.CFrame * CFrame.new(0, -1.6, -0.2), GO, Enum.Material.Neon)
-	light(glow, GO, 10, 0.6)
+	local screenAt = at * CFrame.new(0, 5.6, 0.3) * CFrame.Angles(math.rad(-12), 0, 0)
 	if LAYERS[target] then
 		local cost = ProgressionConfig.PermitCost[target] or 0
 		local power = Progression.RequiredDigPower(target)
-		text(screen, Enum.NormalId.Front, `PERMISO DE DESCENSO\nCAPA {target} · {LAYERS[target].Name}\nCosto: {cost}  ·  Excavación: {power}`, Color3.new(1, 1, 1), Enum.Font.GothamBold)
-		prompt(screen, `Comprar permiso (capa {target})`, `Costo {cost}`).Triggered:Connect(function(player)
+		local sign = SignKit.Build(model, "PermitScreen", screenAt, 4.8, 3.4, {
+			title = "PERMISO DE DESCENSO", sub = `CAPA {target} · {LAYERS[target].Name}\nCosto {cost}   ·   Excavación {power}`,
+			style = "screen", accent = GO, subRatio = 0.5, glow = true,
+		})
+		prompt(sign.plate, `Comprar permiso (capa {target})`, `Costo {cost}`).Triggered:Connect(function(player)
 			Progression.BuyPermit(player, target)
 		end)
 	else
-		text(screen, Enum.NormalId.Front, "ÚLTIMA CAPA\nMás abajo: el núcleo", HAZARD, Enum.Font.GothamBold)
+		SignKit.Build(model, "PermitScreen", screenAt, 4.8, 3.4, {
+			title = "ÚLTIMA CAPA", sub = "Más abajo: el núcleo", style = "screen", accent = HAZARD, subRatio = 0.4, glow = true,
+		})
 	end
 end
 
@@ -163,12 +150,13 @@ local function layerDecor(model: Model, hub)
 	for k = 0, 3 do
 		local a = k * math.pi / 2
 		local dir = Vector3.new(math.cos(a), 0, math.sin(a))
-		local p = signPos + dir * 6
-		local sign = part(model, "LayerSign", Vector3.new(14, 4, 0.5), CFrame.lookAt(p, p + dir), DARK, Enum.Material.Metal)
-		text(sign, Enum.NormalId.Front, `CAPA {hub.layer} · {LAYERS[hub.layer].Name}`, HAZARD)
+		local p = signPos + dir * 7
+		SignKit.Build(model, "LayerSign", CFrame.lookAt(p, p + dir), 11.5, 4.6, {
+			title = `CAPA {hub.layer}`, sub = LAYERS[hub.layer].Name, accent = HAZARD, glow = k == 0,
+		})
 	end
 	for _, s in { -1, 1 } do
-		deco(model, "SignChain", Vector3.new(0.2, 12, 0.2), CFrame.new(signPos + Vector3.new(s * 6, 8, 0)), DARK, Enum.Material.Metal)
+		deco(model, "SignChain", Vector3.new(0.2, 12, 0.2), CFrame.new(signPos + Vector3.new(s * 4, 8.4, 0)), DARK, Enum.Material.Metal)
 	end
 	-- lámparas tenues colgando del techo
 	for k = 0, 5 do

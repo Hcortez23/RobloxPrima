@@ -9,6 +9,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage.Shared.Config.World)
 local BaseLayout = require(ReplicatedStorage.Shared.BaseLayout)
 local ProgressionConfig = require(ReplicatedStorage.Shared.Config.Progression)
+local SignKit = require(script.Parent.SignKit)
 
 local HUB = Config.Hub
 local FLOOR = HUB.Center.Y - HUB.Height / 2
@@ -210,21 +211,9 @@ function descentPortal()
 
 	-- letrero mirando hacia la cueva
 	local signPos = base + up * (height + 6)
-	local sign = part("PortalSign", Vector3.new(half * 2, 4.5, 1), CFrame.lookAt(signPos, signPos - dir), DARK, Enum.Material.Metal)
-	local gui = Instance.new("SurfaceGui")
-	gui.Face = Enum.NormalId.Front
-	gui.LightInfluence = 0
-	gui.Brightness = 2
-	gui.PixelsPerStud = 40
-	local label = Instance.new("TextLabel")
-	label.Size = UDim2.fromScale(1, 1)
-	label.BackgroundTransparency = 1
-	label.Font = Enum.Font.GothamBlack
-	label.TextScaled = true
-	label.TextColor3 = go
-	label.Text = "DESCENSO"
-	label.Parent = gui
-	gui.Parent = sign
+	SignKit.Build(folder, "PortalSign", CFrame.lookAt(signPos, signPos - dir), half * 2, 6, {
+		title = "DESCENSO", sub = "ZONA DE CUEVAS · CAPA 1", accent = go, glow = true,
+	})
 end
 
 -- Ángulos (desde +X hacia +Z) en el medio de cada hueco ancho entre aberturas de la pared de la cueva del foso.

@@ -3,20 +3,27 @@
 -- mineral girando adentro (modelo de assets/models/Minerals, lo anima el cliente) y una placa con nombre, cantidad y
 -- valor. El del centro es más grande: el trofeo con el mineral más valioso.
 --  · Por defecto se llenan solos con los tipos que el dueño tiene guardados, del más valioso al menos (centro,
---    luego a los lados). El dueño puede cambiar un estand con "Exhibir otro mineral" (atributo Mural_<estand>).
+--    luego a los lados).
+--  · Poner un mineral: con un mineral de la mochila en la mano, el aviso del estand lo coloca ahí (lo que llevas de
+--    ese tipo pasa al almacén de la base, a salvo) y ese estand lo muestra (atributo Mural_<estand>). Sin nada en la
+--    mano, el aviso cambia el estand al siguiente tipo guardado.
 --  · Exhibir no gasta nada: el mineral sigue en el almacén y se puede vender (NUCLEO_FRACTURA.md: Mural).
 --  · Los visitantes ven el mural de cualquier base.
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Minerals = require(ReplicatedStorage.Shared.Config.Minerals)
+local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Bases = require(script.Parent.Bases)
+local Inventory = require(script.Parent.Inventory)
+local SignKit = require(script.Parent.SignKit)
 
 local DARK = Color3.fromRGB(40, 42, 48)
 local STEEL = Color3.fromRGB(96, 100, 108)
 local GLASS = Color3.fromRGB(190, 215, 235)
 local HAZARD = Color3.fromRGB(230, 180, 40)
 
+local notify: RemoteEvent
 local RANK_ORDER = { 3, 2, 4, 1, 5 } -- en qué estand va el 1º, 2º... más valioso (el centro primero)
 local TROPHY = 3 -- el estand del centro, más grande
 
@@ -50,7 +57,8 @@ type Stand = {
 	scale: number,
 	model: Model,
 	showcase: CFrame, -- dónde va el mineral (centro de la vitrina)
-	plaque: TextLabel,
+	plaque: TextLabel, -- nombre del mineral
+	plaqueSub: TextLabel, -- cantidad y valor
 	glow: PointLight,
 	prompt: ProximityPrompt, -- solo el dueño lo ve (client/Features/Mural)
 	exhibit: Instance?,
@@ -81,33 +89,22 @@ local function buildStand(parent: Instance, slot: number, frame: CFrame, color: 
 	glow.Range, glow.Brightness, glow.Shadows = 9 * s, 0, false -- se enciende con el color del mineral
 	glow.Parent = lamp
 	-- placa al frente, mirando hacia el centro de la base
-	local plaque = part(model, "Plaque", Vector3.new(2.9, 1.5, 0.15) * s, at(0, 2.1, -1.48), Color3.fromRGB(16, 18, 22), Enum.Material.SmoothPlastic)
-	local gui = Instance.new("SurfaceGui")
-	gui.Face, gui.LightInfluence, gui.PixelsPerStud = Enum.NormalId.Front, 0, 50
-	local label = Instance.new("TextLabel")
-	label.Size, label.BackgroundTransparency = UDim2.fromScale(1, 1), 1
-	label.Font, label.TextScaled, label.TextWrapped = Enum.Font.GothamBold, true, true
-	label.TextColor3 = Color3.new(1, 1, 1)
-	label.Text = ""
-	label.Parent = gui
-	gui.Parent = plaque
-	if slot == TROPHY then -- letrero del trofeo
-		local sign = part(model, "TrophySign", Vector3.new(3.4, 0.7, 0.15) * s, at(0, 8.1, -1.2), DARK, Enum.Material.Metal)
-		local signGui = gui:Clone()
-		signGui.Parent = sign
-		local signLabel = signGui:FindFirstChildOfClass("TextLabel") :: TextLabel
-		signLabel.Font, signLabel.TextColor3, signLabel.Text = Enum.Font.GothamBlack, HAZARD, "MÁS VALIOSO"
+	local plaque = SignKit.Build(model, "Plaque", at(0, 2.1, -1.66), 3.3 * s, 1.75 * s, {
+		title = "VACÍO", sub = " ", accent = color, depth = 0.22, subRatio = 0.36, bolts = false,
+	})
+	if slot == TROPHY then -- letrero del trofeo, sobre la vitrina
+		SignKit.Build(model, "TrophySign", at(0, 8.35, -1.25), 3.8 * s, 1 * s, { title = "MÁS VALIOSO", accent = HAZARD, depth = 0.18, bolts = false, glow = true })
 	end
 	local prompt = Instance.new("ProximityPrompt")
-	prompt.ActionText, prompt.ObjectText = "Exhibir otro mineral", "Estand"
+	prompt.ActionText, prompt.ObjectText = "Exhibir mineral", "Estand" -- el cliente lo ajusta según lo que tengas en la mano
 	prompt.HoldDuration = 0.25
 	prompt.MaxActivationDistance = 8
 	prompt.RequiresLineOfSight = false
-	prompt.Parent = plaque
+	prompt.Parent = plaque.plate
 	CollectionService:AddTag(prompt, "MuralPrompt") -- el cliente lo muestra solo al dueño (atributo Owner del estand)
 	return {
 		slot = slot, frame = frame, scale = s, model = model, showcase = at(0, 5.3, 0),
-		plaque = label, glow = glow, prompt = prompt, exhibit = nil, shown = nil,
+		plaque = plaque.title, plaqueSub = plaque.sub, glow = glow, prompt = prompt, exhibit = nil, shown = nil,
 	}
 end
 
@@ -163,11 +160,13 @@ local function show(stand: Stand, key: string?, count: number)
 	end
 	if key then
 		local value = count * (Minerals[key].Value or 0)
-		stand.plaque.Text = `{displayName(key)}\nx{count}  ·  valor {value}`
+		stand.plaque.Text = string.upper(displayName(key))
 		stand.plaque.TextColor3 = Minerals[key].Color:Lerp(Color3.new(1, 1, 1), 0.35)
+		stand.plaqueSub.Text = `x{count}   ·   valor {value}`
 	else
 		stand.plaque.Text = "VACÍO"
-		stand.plaque.TextColor3 = Color3.fromRGB(120, 120, 120)
+		stand.plaque.TextColor3 = Color3.fromRGB(130, 130, 136)
+		stand.plaqueSub.Text = "sin mineral"
 	end
 end
 
@@ -200,6 +199,7 @@ return {
 			task.wait(0.5)
 		end
 		local folder = workspace:WaitForChild("Bases")
+		notify = Remotes.get("Progress_Notify") -- avisos en pantalla (los muestra client/Features/Progression)
 		local murals: { [any]: { Stand } } = {}
 		for _, base in Bases.All() do
 			local baseModel = folder:FindFirstChild(`Base{base.index}`)
@@ -209,14 +209,33 @@ return {
 					if anchor.Name == "MuralSlot" and anchor:IsA("BasePart") then
 						local stand = buildStand(baseModel, anchor:GetAttribute("Slot"), anchor.CFrame * CFrame.new(0, -0.1, 0), base.color)
 						table.insert(stands, stand)
-						-- el dueño cambia el mineral de este estand por el siguiente que tenga (de más a menos valioso)
 						stand.prompt.Triggered:Connect(function(player)
 							if base.owner ~= player then return end
+							-- con un mineral de la mochila en la mano: se coloca en este estand (pasa al almacén)
+							local held = player.Character and player.Character:FindFirstChildOfClass("Tool")
+							local item = held and held:GetAttribute("Item")
+							if typeof(item) == "string" and Minerals[item] then
+								local n = Inventory.Count(player, item)
+								if n > 0 then
+									Inventory.Add(player, item, -n)
+									Bases.Deposit(player, { [item] = n }, false)
+								end
+								for slot = 1, #stands do -- si estaba elegido en otro estand, pasa a este
+									if player:GetAttribute(`Mural_{slot}`) == item then player:SetAttribute(`Mural_{slot}`, nil) end
+								end
+								player:SetAttribute(`Mural_{stand.slot}`, item)
+								notify:FireClient(player, `{displayName(item)} en exhibición (x{n} guardados en tu base).`, "ok")
+								return
+							end
+							-- sin nada en la mano: el siguiente tipo guardado (de más a menos valioso)
 							local have = {}
 							for _, key in TYPES do
 								if (player:GetAttribute("Stored_" .. key) or 0) > 0 then table.insert(have, key) end
 							end
-							if #have == 0 then return end
+							if #have == 0 then
+								notify:FireClient(player, "No tienes minerales para exhibir: toma uno de tu mochila en la mano y vuelve a intentarlo.", "error")
+								return
+							end
 							local current = if stand.shown then string.match(stand.shown, "^(.-):") else nil
 							local index = table.find(have, current or "") or 0
 							player:SetAttribute(`Mural_{stand.slot}`, have[index % #have + 1])
@@ -230,14 +249,17 @@ return {
 		-- se repinta cada segundo (8 bases x 5 estands: barato); solo cambia lo que cambió
 		while true do
 			for base, stands in murals do
-				local owner = base.owner
-				local shown = plan(owner, #stands)
-				for _, stand in stands do
-					local key = shown[stand.slot]
-					show(stand, key, if key and owner then owner:GetAttribute("Stored_" .. key) or 0 else 0)
-					local ownerId = if owner then owner.UserId else 0
-					if stand.model:GetAttribute("Owner") ~= ownerId then stand.model:SetAttribute("Owner", ownerId) end
-				end
+				local ok, err = pcall(function()
+					local owner = base.owner
+					local shown = plan(owner, #stands)
+					for _, stand in stands do
+						local key = shown[stand.slot]
+						show(stand, key, if key and owner then owner:GetAttribute("Stored_" .. key) or 0 else 0)
+						local ownerId = if owner then owner.UserId else 0
+						if stand.model:GetAttribute("Owner") ~= ownerId then stand.model:SetAttribute("Owner", ownerId) end
+					end
+				end)
+				if not ok then warn(`[Mural] base {base.index}: {err}`) end
 			end
 			task.wait(1)
 		end

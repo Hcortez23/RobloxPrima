@@ -10,6 +10,7 @@
 local Players = game:GetService("Players")
 
 local World = require(script.Parent.World)
+local SignKit = require(script.Parent.SignKit)
 
 local ACTIVATE = 230 -- se amuebla si hay un jugador a menos de esto del centro de la mina
 local DEACTIVATE = 330 -- se quita si todos están más lejos
@@ -300,20 +301,10 @@ local function furnishRoom(model: Model, room, central: boolean, mine, rng: Rand
 		-- letrero oxidado con el sector
 		local post = frame * CFrame.new(sx / 2 - 4, 0, -sz / 2 + 4) * CFrame.Angles(0, math.rad(45), 0)
 		part(model, "SignPost", Vector3.new(0.4, 5, 0.4), post * CFrame.new(0, 2.5, 0), OLD_WOOD, Enum.Material.Wood)
-		local sign = part(model, "Sign", Vector3.new(4.4, 1.6, 0.25), post * CFrame.new(0, 4.6, -0.3), RUST, Enum.Material.CorrodedMetal)
-		local gui = Instance.new("SurfaceGui")
-		gui.Face = Enum.NormalId.Front
-		gui.LightInfluence = 1
-		gui.PixelsPerStud = 30
-		local label = Instance.new("TextLabel")
-		label.Size = UDim2.fromScale(1, 1)
-		label.BackgroundTransparency = 1
-		label.Font = Enum.Font.GothamBlack
-		label.TextScaled = true
-		label.TextColor3 = Color3.fromRGB(210, 190, 150)
-		label.Text = `SECTOR {mine.layer}-{mine.id}`
-		label.Parent = gui
-		gui.Parent = sign
+		SignKit.Build(model, "Sign", post * CFrame.new(0, 4.7, -0.35), 4.8, 2.2, {
+			title = `SECTOR {mine.layer}-{mine.id}`, sub = "MINA ABANDONADA", style = "rust",
+			accent = Color3.fromRGB(200, 130, 70), titleColor = Color3.fromRGB(235, 215, 175), depth = 0.25,
+		})
 	end
 end
 
