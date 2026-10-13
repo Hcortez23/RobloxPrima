@@ -79,12 +79,17 @@ Para que no choque con el resto:
 - El rifle ya no sale de StarterPack: `Weapon` (servidor) lo entrega al aparecer cada personaje, y `Movement` evita duplicar el gancho. `Config/Weapon.Debug = true` imprime los disparos en el Output.
 
 ## Mundo, base y carritos
-- `server/Features/World.luau` + `shared/Config/World.luau`: genera el terreno (cuevas solo en la zona de arriba; más abajo roca maciza por bloques), la cueva de la base, la del foso, el pozo sellado, arenas y minerales. Exporta `World.Route` (ruta principal), `World.CanDig(pos, radio)` y `World.Hardness(profundidad)`.
-- `shared/Config/Biomes.luau`: 5 biomas de 4 capas (nombre, material, color, luz). `Config/World` calcula cada capa (profundidad, dureza, rareza, cantidad) con curvas.
-- `client/Features/Biomes.luau`: ambiente por bioma y aviso con el nombre de la capa.
+- `server/Features/World.luau` + `shared/Config/World.luau`: genera el terreno (cuevas solo en la zona de arriba; más abajo roca maciza por bloques), la cueva del foso con las 8 cuevas-base y sus pasajes alrededor (disposición en `shared/BaseLayout.luau`), el pozo sellado, arenas y minerales. Exporta `World.Route` (ruta principal), `World.CanDig(pos, radio)` y `World.Hardness(profundidad)`.
+- `shared/Config/Biomes.luau`: 10 capas con 4 biomas cada una (nombre, tema, material, luz, tinte y `Effect`, la mecánica por implementar) y el color de cada material. `Config/World` calcula cada capa (profundidad, dureza, rareza, cantidad) con curvas.
+- `shared/BiomeMap.luau`: qué bioma hay en cada punto (cuadrantes alrededor del pozo, girados por capa). Lo usan World (material de la roca) y el cliente (ambiente); para una mecánica de bioma, pregunta aquí `BiomeMap.At(posición)`.
+- `client/Features/Biomes.luau`: ambiente por bioma y aviso con la capa y el bioma al entrar.
 - `server/Features/Hub.luau`: utilería de la cueva del foso (rejilla, máquinas, portal DESCENSO, puerta de arco).
 - `server/Features/Route.luau`: rieles, cables y letreros de la ruta; exporta `Route.Paths` (puntos del suelo) y pone `workspace.RouteReady`.
-- `server/Features/Bases.luau` + `Config/Bases.luau`: bases de los jugadores, spawn en su base, panel y silos. Datos en atributos del jugador: `Stored_<Rareza>`, `Stat_Carts`, `Stat_Captured`, `Stat_DeepestLayer`. API: `Bases.Get`, `Bases.All`, `Bases.Deposit`, `Bases.TakeInventory`. Pone `workspace.BasesReady`.
-- `server/Features/Carts.luau` + `Config/Carts.luau`: estaciones y carritos que llevan el inventario hasta el andén de la base.
+- `server/Features/Bases.luau` + `Config/Bases.luau`: una cueva-base por jugador (spawn, arcos, andén, panel y un silo por cada tipo de `Config/Minerals`). Datos en atributos del jugador: `Stored_<Mineral>`, `Stat_Carts`, `Stat_Captured`, `Stat_DeepestLayer`. API: `Bases.Get`, `Bases.All`, `Bases.Deposit`, `Bases.TakeInventory`. Pone `workspace.BasesReady`.
+- `server/Features/Mines.luau`: utilería de las minas abandonadas de `World.Mines` (entibado, rieles, carritos, máquinas, campamentos); se arma cerca de los jugadores y se quita al alejarse. La forma (galerías, salas, pozos) la talla World con `Config.Mines`.
+- `shared/HubLayout.luau`: dónde está el hub de cada capa (y su elevador, terminal de permiso y estación). Lo usan World (los talla y exporta `World.Hubs[capa]` cuando están listos), LayerHubs, Carts y Progression.
+- `server/Features/LayerHubs.luau`: utilería de los hubs (baranda del pozo, elevador, terminal del permiso, letrero, lámparas).
+- `server/Features/Progression.luau` + `Config/Progression.luau`: capas desbloqueadas por jugador (`Progress_Unlocked`, `Hub_<capa>`), permiso de descenso (`Progression.BuyPermit`), límite de excavación (`Progression.CanDigDepth`, lo usa Excavation), presión (`Pressure`) y elevador (remotes `Elevator` y `Progress_Notify`; pantalla en `client/Features/Progression.luau`).
+- `server/Features/Carts.luau` + `Config/Carts.luau`: estación de carritos en cada hub; el carrito es visual y entrega en la base (`Bases.Deposit`) en cuanto entra al túnel.
 - `server/Features/Excavation.luau` (+ cliente) y `Config/Excavation.luau`: los disparos al terreno excavan según `DigPower` del arma y `Hardness` de la capa.
 - Rendimiento: `StreamingEnabled` está activo (cada cliente solo carga lo cercano), así que en el cliente no hay que suponer que todo el mapa existe.

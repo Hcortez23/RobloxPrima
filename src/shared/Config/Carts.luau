@@ -1,11 +1,8 @@
--- Carritos (server/Features/Carts.luau): en cada estación de la ruta (la cueva del foso, la cámara de cruce y cada
--- arena) el jugador carga los minerales que lleva y un carrito los lleva por los rieles hasta el andén de su base.
+-- Carritos (server/Features/Carts.luau): una estación en el hub de cada capa (shared/HubLayout). El jugador carga lo que
+-- lleva, el carrito entra lleno por un túnel solo para carritos y, apenas se pierde de vista, lo que lleva se suma al
+-- almacén de su base; ese carrito desaparece y sale uno vacío del túnel para el siguiente envío.
 return {
-	Speed = 45, -- studs por segundo
-	SendCooldown = 2, -- segundos entre envíos del mismo jugador
-	RingRadius = 72, -- vía circular de la cueva de la base (por dentro del anillo de bases)
-	SampleStep = 3, -- separación de los puntos de la vía en la superficie (y de los durmientes)
-	-- Vía por la cueva del foso, de la boca del portal DESCENSO a la puerta de arco: rodea la rejilla del pozo por este
-	-- punto (ángulo en grados desde +X hacia +Z, y distancia al centro de la cueva).
-	HubWaypoint = { Angle = 140, Distance = 70 },
+	Speed = 16, -- studs por segundo
+	DepositDistance = 12, -- studs dentro del túnel (pasada la reja) donde se entrega y desaparece el carrito
+	RespawnDelay = 1.2, -- segundos hasta que sale el carrito vacío
 }

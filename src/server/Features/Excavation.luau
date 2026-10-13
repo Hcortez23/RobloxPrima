@@ -1,7 +1,8 @@
 -- Excavación: de la capa 2 hacia abajo todo es roca maciza que se abre disparando (y con las explosiones de minerales).
 -- Hueco de un disparo = BaseRadius * DigPower del arma / Hardness de la capa (Config/Excavation, Config/World). Si es
 -- menor que MinRadius, la roca es demasiado dura para esa arma: no se abre y el cliente muestra chispas. Nunca se
--- excavan las zonas protegidas (World.CanDig): el caparazón del pozo, las cuevas de arriba y el fondo del mundo.
+-- excavan las zonas protegidas (World.CanDig): el caparazón del pozo, las cuevas de arriba y el fondo del mundo. Y cada
+-- jugador solo excava hasta el fondo de su última capa desbloqueada (Progression: permiso de descenso).
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config.Excavation)
@@ -10,6 +11,7 @@ local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Weapon = require(script.Parent.Weapon)
 local World = require(script.Parent.World)
 local Minerals = require(script.Parent.Minerals)
+local Progression = require(script.Parent.Progression)
 
 local Terrain = workspace.Terrain
 local digRemote: RemoteEvent
@@ -39,7 +41,7 @@ return {
 			if instance ~= Terrain then return end
 			local hardness = World.Hardness(-position.Y)
 			local radius = math.min(Config.BaseRadius * (digPower or Config.DefaultDigPower) / hardness, Config.MaxRadius)
-			if radius < Config.MinRadius or not World.CanDig(position, radius) then
+			if radius < Config.MinRadius or not World.CanDig(position, radius) or not Progression.CanDigDepth(player, -position.Y + radius) then
 				digRemote:FireClient(player, "hard", position, normal) -- demasiado dura (o zona protegida)
 				return
 			end

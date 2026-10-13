@@ -1,32 +1,19 @@
--- Ambiente por bioma y aviso de capa (Config/Biomes, Config/World): según la profundidad de la cámara, la luz ambiental
--- y el tinte cambian suavemente al pasar de un bioma a otro, y al entrar en una capa nueva aparece su nombre en
--- pantalla unos segundos ("CAPA 7 · Bosque de prismas"). Solo en este cliente; la roca la pinta el servidor.
+-- Ambiente por bioma y aviso de bioma (Config/Biomes, shared/BiomeMap): según dónde esté la cámara, la luz ambiental y
+-- el tinte cambian suavemente al pasar de un bioma a otro (cada capa tiene 4, repartidos alrededor del pozo), y al
+-- entrar en un bioma o capa nueva aparece su nombre unos segundos ("CAPA 3 · Caverna Magnética"). En la zona común de
+-- arriba (cuevas del foso y de las bases) no hay bioma. Solo en este cliente; la roca la pinta el servidor.
 local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
-local Biomes = require(ReplicatedStorage.Shared.Config.Biomes)
+local BiomeMap = require(ReplicatedStorage.Shared.BiomeMap)
 local WorldConfig = require(ReplicatedStorage.Shared.Config.World)
 
 local FADE = TweenInfo.new(2.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
 local BANNER_TIME = 3.5 -- segundos que se ve el nombre de la capa
 
-local function layerAt(depth: number): number
-	for i, layer in WorldConfig.Layers do
-		if depth <= layer.MaxDepth then return i end
-	end
-	return #WorldConfig.Layers
-end
-
-local function biomeOf(layer: number)
-	for _, biome in Biomes do
-		if layer >= biome.Layers[1] and layer <= biome.Layers[2] then return biome end
-	end
-	return Biomes[1]
-end
-
--- Aviso centrado arriba: número y nombre de la capa, y debajo el bioma.
+-- Aviso centrado arriba: capa y bioma, y debajo el tema, el nombre de la capa y su dureza.
 local function buildBanner(): (ScreenGui, TextLabel, TextLabel)
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "LayerBanner"
@@ -47,7 +34,7 @@ local function buildBanner(): (ScreenGui, TextLabel, TextLabel)
 	title.Parent = gui
 	local subtitle = title:Clone()
 	subtitle.Position = UDim2.new(0.5, 0, 0.12, 50)
-	subtitle.Size = UDim2.fromOffset(500, 26)
+	subtitle.Size = UDim2.fromOffset(620, 26)
 	subtitle.Font = Enum.Font.GothamBold
 	subtitle.TextColor3 = Color3.fromRGB(230, 180, 40)
 	subtitle.Parent = gui
@@ -66,28 +53,28 @@ return {
 		local banner, title, subtitle = buildBanner()
 
 		local currentBiome, currentLayer, shownAt = nil, nil, 0
+		local first = true
+		local lastSeen = nil -- bioma de la muestra anterior: un cambio cuenta si se repite (sin parpadeo en los bordes)
 		while true do
-			local camera = workspace.CurrentCamera
-			local depth = -camera.CFrame.Position.Y
-			local layer = layerAt(depth)
-			local biome = biomeOf(layer)
-			if biome ~= currentBiome then
-				currentBiome = biome
-				TweenService:Create(Lighting, FADE, { Ambient = biome.Ambient or defaultAmbient }):Play()
-				TweenService:Create(tint, FADE, { TintColor = biome.Tint }):Play()
-			end
-			-- el aviso sale al entrar en una capa (no en la base ni en la cueva del foso, que están en la capa 1)
-			if layer ~= currentLayer then
-				local first = currentLayer == nil
-				currentLayer = layer
-				if not first then
+			local layer, biome = BiomeMap.At(workspace.CurrentCamera.CFrame.Position)
+			local stable = biome == lastSeen or first
+			lastSeen = biome
+			if stable and (biome ~= currentBiome or (biome and layer ~= currentLayer)) then
+				if biome ~= currentBiome then
+					TweenService:Create(Lighting, FADE, { Ambient = if biome then biome.Ambient else defaultAmbient }):Play()
+					TweenService:Create(tint, FADE, { TintColor = if biome then biome.Tint else Color3.new(1, 1, 1) }):Play()
+				end
+				currentBiome, currentLayer = biome, layer
+				-- el aviso sale al entrar en un bioma (no al aparecer, ni al volver a la zona común)
+				if biome and not first then
 					local info = WorldConfig.Layers[layer]
-					title.Text = `CAPA {layer} · {info.Name}`
-					subtitle.Text = `{info.Biome}  ·  dureza {info.Hardness}`
+					title.Text = `CAPA {layer} · {biome.Name}`
+					subtitle.Text = `{biome.Theme}  ·  {info.Name}  ·  dureza {info.Hardness}`
 					banner.Enabled = true
 					shownAt = os.clock()
 				end
 			end
+			first = false
 			if banner.Enabled and os.clock() - shownAt > BANNER_TIME then
 				banner.Enabled = false
 			end

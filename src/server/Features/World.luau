@@ -1,8 +1,11 @@
 -- Mundo: meseta enorme con un pozo estrecho y vertical que baja directo al núcleo, hecho con Terrain por código.
---  · Bajo la meseta hay capas de roca con cuevas naturales.
+--  · Bajo la meseta, 10 capas de roca con 4 biomas cada una (shared/BiomeMap dice cuál va en cada sitio; cada bioma
+--    tiene su material de roca). La zona común de arriba (cuevas del foso y de las bases) es de roca neutra.
 --  · Cueva de la base (spawn, bases y tiendas) unida por una gran puerta de arco a la cueva del foso: caverna enorme
 --    bajo el centro con el pozo al núcleo en su piso, tapado por una rejilla (Hub.luau pone la puerta, la rejilla, luces
---    y máquinas). El pozo está sellado: ninguna cueva ni túnel lo cruza.
+--    y máquinas). Ninguna cueva ni túnel cruza el pozo ni se puede excavar hacia él: se entra por los hubs.
+--  · Un hub por capa alrededor del pozo (shared/HubLayout): el pozo queda abierto en cada uno (LayerHubs le pone
+--    baranda y elevador), con la estación de carritos y galerías hacia las minas de su capa.
 --  · Superficie llana en el centro con lomas y montañas hacia los bordes; entradas repartidas (rampas y pozos).
 --  · Al fondo, la cámara del núcleo: el último eslabón de la cadena de arenas.
 --  · Cavernas-arena por capa (grandes y verticales, con salientes, pilares y estalactitas para el gancho), unidas por
@@ -18,7 +21,10 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config.World)
-local Biomes = require(ReplicatedStorage.Shared.Config.Biomes)
+local BiomeMap = require(ReplicatedStorage.Shared.BiomeMap)
+local BaseLayout = require(ReplicatedStorage.Shared.BaseLayout)
+local HubLayout = require(ReplicatedStorage.Shared.HubLayout)
+local ProgressionConfig = require(ReplicatedStorage.Shared.Config.Progression)
 local MineralData = require(ReplicatedStorage.Shared.Config.Minerals)
 
 local Terrain = workspace.Terrain
@@ -67,19 +73,14 @@ local function layerIndex(depth: number): number
 	return #Config.Layers
 end
 
--- bioma de una capa (Config/Biomes: cada uno cubre un rango de capas)
-local function biomeOf(layer: number)
-	for _, biome in Biomes do
-		if layer >= biome.Layers[1] and layer <= biome.Layers[2] then return biome end
-	end
-	return Biomes[1]
+-- Material de la roca: el del bioma de (x, z) en esa capa; por encima de la zona de biomas (cuevas del foso y de las
+-- bases, y la corteza sobre ellas), roca neutra.
+local NEUTRAL = Enum.Material.Rock
+local COMMON_DEPTH = -BiomeMap.CommonZoneY
+local function materialAt(x: number, z: number, depth: number): Enum.Material
+	if depth < COMMON_DEPTH then return NEUTRAL end
+	return BiomeMap.Biome(x, z, layerIndex(depth)).Material
 end
-
--- material de la roca a esa profundidad: el de su bioma
-local function materialAt(depth: number): Enum.Material
-	return biomeOf(layerIndex(depth)).Material
-end
-
 -- color de luz de la capa a esa profundidad (las capas sin color propio usan el primero)
 local function lightColor(depth: number): Color3
 	return Config.LightColors[layerIndex(depth)] or Config.LightColors[1]
@@ -91,11 +92,11 @@ end
 
 -- Datos por fila de voxel (dependen solo de la profundidad), calculados una vez. Fila 1 = la más profunda.
 local NY = (Config.Depth + TOP) / RES
-local rowMat, rowLayer, rowWidth, rowThr = table.create(NY), table.create(NY), table.create(NY), table.create(NY)
+local rowCommon, rowLayer, rowWidth, rowThr = table.create(NY), table.create(NY), table.create(NY), table.create(NY)
 for j = 1, NY do
 	local depth = -(-Config.Depth + (j - 0.5) * RES)
 	local t = math.clamp(depth / Config.Depth, 0, 1)
-	rowMat[j], rowLayer[j] = materialAt(depth), layerIndex(depth)
+	rowCommon[j], rowLayer[j] = depth < COMMON_DEPTH, layerIndex(depth)
 	rowWidth[j] = Config.TunnelWidth[1] + (Config.TunnelWidth[2] - Config.TunnelWidth[1]) * t
 	rowThr[j] = Config.CavernThreshold[1] + (Config.CavernThreshold[2] - Config.CavernThreshold[1]) * t
 end
@@ -115,28 +116,34 @@ local CAVE_TOP = JUNCTION.Y + Config.Hub.Junction.Radius
 local CAVE_R2 = Config.CaveRadius ^ 2
 local CAVES_BOTTOM_Y = -Config.CaveZoneDepth + 8 -- de aquí para abajo, roca maciza que se excava
 
--- Caparazón de roca maciza alrededor de la cueva de la base, la del foso y el pasaje entre ellas: ahí no se abren
--- cuevas naturales (las cuevas empiezan desde la cámara de cruce). Devuelve el rango de alturas sellado en la columna
--- (x, z), o nil si la columna queda fuera.
+-- Caparazón de roca maciza alrededor de la cueva del foso, las cuevas-base (shared/BaseLayout) y sus pasajes: ahí no se
+-- abren cuevas naturales ni se puede excavar (las cuevas empiezan desde la cámara de cruce). Devuelve el rango de
+-- alturas sellado en la columna (x, z), o nil si la columna queda fuera.
+local BASE = BaseLayout.Config
 local SHELL = Config.CaveShell
 local SHELL_BOTTOM = HUB_FLOOR - SHELL
-local function shellTop(cave): number
-	return cave.Center.Y + cave.Height / 2 + cave.DomeRadius + SHELL
-end
 local HUB_XZ = Vector2.new(Config.Hub.Center.X, Config.Hub.Center.Z)
-local SPAWN_XZ = Vector2.new(Config.SpawnCave.Center.X, Config.SpawnCave.Center.Z)
+local HUB_TOP = Config.Hub.Center.Y + Config.Hub.Height / 2 + Config.Hub.DomeRadius + SHELL
+local BASE_TOP = HUB_FLOOR + BASE.CaveHeight + BASE.DomeRadius + SHELL
+local PASSAGE_TOP = HUB_FLOOR + BASE.PassageHeight + BASE.PassageWidth / 2 + SHELL
+
+local function nearPassage(p: Vector2, layout, extra: number): boolean
+	local a = Vector2.new(layout.hubMouth.X, layout.hubMouth.Z)
+	local ab = Vector2.new(layout.baseMouth.X, layout.baseMouth.Z) - a
+	local t = math.clamp((p - a):Dot(ab) / ab:Dot(ab), 0, 1)
+	return (p - (a + ab * t)).Magnitude <= BASE.PassageWidth / 2 + extra
+end
+
 local function shellRange(x: number, z: number): (number?, number?)
 	local p = Vector2.new(x, z)
 	local top: number? = nil
-	if (p - HUB_XZ).Magnitude <= Config.Hub.Radius + SHELL then top = shellTop(Config.Hub) end
-	if (p - SPAWN_XZ).Magnitude <= Config.SpawnCave.Radius + SHELL then
-		top = math.max(top or -math.huge, shellTop(Config.SpawnCave))
-	end
-	-- pasaje: distancia al segmento entre los centros de las dos cuevas
-	local ab = SPAWN_XZ - HUB_XZ
-	local t = math.clamp((p - HUB_XZ):Dot(ab) / ab:Dot(ab), 0, 1)
-	if (p - (HUB_XZ + ab * t)).Magnitude <= Config.Gate.Width / 2 + SHELL then
-		top = math.max(top or -math.huge, HUB_FLOOR + Config.Gate.Height + Config.Gate.Width / 2 + SHELL)
+	if (p - HUB_XZ).Magnitude <= Config.Hub.Radius + SHELL then top = HUB_TOP end
+	for _, layout in BaseLayout.All do
+		if (p - Vector2.new(layout.floor.X, layout.floor.Z)).Magnitude <= BASE.CaveRadius + SHELL then
+			top = math.max(top or -math.huge, BASE_TOP)
+		elseif nearPassage(p, layout, SHELL) then
+			top = math.max(top or -math.huge, PASSAGE_TOP)
+		end
 	end
 	if top then return SHELL_BOTTOM, top end
 	return nil, nil
@@ -145,11 +152,16 @@ end
 -- ¿Un punto (x, z) cae sobre las cuevas de arriba (con su caparazón)? Para alejar de ahí las entradas de la superficie.
 local function overCaves(x: number, z: number, extra: number): boolean
 	local p = Vector2.new(x, z)
-	return (p - HUB_XZ).Magnitude <= Config.Hub.Radius + SHELL + extra
-		or (p - SPAWN_XZ).Magnitude <= Config.SpawnCave.Radius + SHELL + extra
-		or (p - (HUB_XZ + SPAWN_XZ) / 2).Magnitude <= (SPAWN_XZ - HUB_XZ).Magnitude / 2 + extra
+	if (p - HUB_XZ).Magnitude <= Config.Hub.Radius + SHELL + extra then return true end
+	for _, layout in BaseLayout.All do
+		if (p - Vector2.new(layout.floor.X, layout.floor.Z)).Magnitude <= BASE.CaveRadius + SHELL + extra
+			or nearPassage(p, layout, SHELL + extra)
+		then
+			return true
+		end
+	end
+	return false
 end
-
 local generatedDepth = 0 -- hasta qué profundidad ya hay terreno (crece mientras se genera)
 
 -- Ruta principal (entrada inicial y túneles entre arenas): Route.luau le pone rieles, cables y letreros.
@@ -177,16 +189,18 @@ local function generateChunk(x0: number, z0: number, jA: number, jB: number, sta
 		local x = x0 + (i - 0.5) * RES
 		local x1, x2, x3 = x * f + o1[1], x * f + o2[1], x * f + o3[1]
 		local dx2 = (x - Config.PitCenter.X) ^ 2
+		local colMats = table.create(n) -- material de la roca por columna y capa (se calcula al necesitarlo)
 		for k = 1, n do
 			heights[k] = surfaceHeight(x, zs[k])
 			shellLow[k], shellHigh[k] = shellRange(x, zs[k])
+			colMats[k] = {}
 		end
 		for j = jA, jB do
 			local y = -Config.Depth + (j - 0.5) * RES
 			local y1, y2, y3 = y * f + o1[2], y * f + o2[2], y * f + o3[2]
 			local mj, oj = table.create(n), table.create(n)
 			mi[j - jA + 1], oi[j - jA + 1] = mj, oj
-			local width, thr, layer = rowWidth[j], rowThr[j], rowLayer[j]
+			local width, thr, layer, common = rowWidth[j], rowThr[j], rowLayer[j], rowCommon[j]
 			for k = 1, n do
 				local ground = heights[k]
 				local below = ground - y -- profundidad bajo la superficie (con montañas)
@@ -218,7 +232,18 @@ local function generateChunk(x0: number, z0: number, jA: number, jB: number, sta
 					mj[k], oj[k] = Enum.Material.Air, 0
 				else
 					-- tierra en la superficie llana; roca desnuda en las montañas
-					mj[k] = if below < 5 then (if ground > 26 then Enum.Material.Rock else Enum.Material.Ground) else rowMat[j]
+					if below < 5 then
+						mj[k] = if ground > 26 then Enum.Material.Rock else Enum.Material.Ground
+					elseif common then
+						mj[k] = NEUTRAL
+					else
+						local m = colMats[k][layer]
+						if not m then
+							m = BiomeMap.Biome(x, zs[k], layer).Material
+							colMats[k][layer] = m
+						end
+						mj[k] = m
+					end
 					oj[k] = occ
 				end
 			end
@@ -229,17 +254,46 @@ local function generateChunk(x0: number, z0: number, jA: number, jB: number, sta
 	Terrain:WriteVoxels(Region3.new(Vector3.new(x0, yBottom, z0), Vector3.new(x0 + CHUNK, yTop, z0 + CHUNK)), RES, mats, occs)
 end
 
--- Bloque de roca maciza: cada tramo de capa con el material de su bioma, sin calcular voxel a voxel.
-local function fillSolidChunk(x0: number, z0: number, fromDepth: number, toDepth: number)
-	for i, layer in Config.Layers do
-		local top, bottom = math.max(fromDepth, layerTop(i)), math.min(toDepth, layer.MaxDepth)
-		if bottom > top then
-			local center = Vector3.new(x0 + CHUNK / 2, -(top + bottom) / 2, z0 + CHUNK / 2)
-			Terrain:FillBlock(CFrame.new(center), Vector3.new(CHUNK, bottom - top, CHUNK), materialAt((top + bottom) / 2))
+-- Tramo de roca maciza de una capa en un cuadrado: si todo el cuadrado cae en el mismo bioma va de un solo bloque; si
+-- lo cruza un borde de bioma, se divide en cuatro (hasta MIN_BLOCK de lado).
+local MIN_BLOCK = 16
+local SAMPLES = { { 0, 0 }, { 0.5, 0 }, { 1, 0 }, { 0, 0.5 }, { 1, 0.5 }, { 0, 1 }, { 0.5, 1 }, { 1, 1 } }
+local function fillBiomeBlock(x0: number, z0: number, size: number, top: number, bottom: number, layer: number)
+	local sector = BiomeMap.Sector(x0 + size / 2, z0 + size / 2, layer)
+	local uniform = true
+	if size > MIN_BLOCK then
+		for _, f in SAMPLES do
+			if BiomeMap.Sector(x0 + f[1] * size, z0 + f[2] * size, layer) ~= sector then
+				uniform = false
+				break
+			end
+		end
+	end
+	if uniform then
+		local center = Vector3.new(x0 + size / 2, -(top + bottom) / 2, z0 + size / 2)
+		Terrain:FillBlock(CFrame.new(center), Vector3.new(size, bottom - top, size), Config.Layers[layer].Biomes[sector].Material)
+	else
+		local h = size / 2
+		for _, o in { { 0, 0 }, { h, 0 }, { 0, h }, { h, h } } do
+			fillBiomeBlock(x0 + o[1], z0 + o[2], h, top, bottom, layer)
 		end
 	end
 end
 
+-- Bloque de roca maciza: cada tramo de capa con el material de sus biomas, sin calcular voxel a voxel.
+local function fillSolidChunk(x0: number, z0: number, fromDepth: number, toDepth: number)
+	if fromDepth < COMMON_DEPTH then -- corteza de la zona común: roca neutra
+		local bottom = math.min(toDepth, COMMON_DEPTH)
+		Terrain:FillBlock(CFrame.new(x0 + CHUNK / 2, -(fromDepth + bottom) / 2, z0 + CHUNK / 2), Vector3.new(CHUNK, bottom - fromDepth, CHUNK), NEUTRAL)
+		fromDepth = bottom
+	end
+	for i, layer in Config.Layers do
+		local top, bottom = math.max(fromDepth, layerTop(i)), math.min(toDepth, layer.MaxDepth)
+		if bottom > top then
+			fillBiomeBlock(x0, z0, CHUNK, top, bottom, i)
+		end
+	end
+end
 -- ¿El bloque toca la columna del pozo? (ahí hace falta el cálculo voxel a voxel para su borde irregular)
 local function chunkNearPit(x0: number, z0: number): boolean
 	local px, pz = Config.PitCenter.X, Config.PitCenter.Y
@@ -248,22 +302,40 @@ local function chunkNearPit(x0: number, z0: number): boolean
 	return math.sqrt(dx * dx + dz * dz) < Config.PitRadius + Config.PitRagged + 3 * RES
 end
 
+-- ¿El bloque toca la zona de cuevas (alrededor del pozo)?
+local function chunkNearCaves(x0: number, z0: number): boolean
+	local px, pz = Config.PitCenter.X, Config.PitCenter.Y
+	local dx = math.max(x0 - px, 0, px - (x0 + CHUNK))
+	local dz = math.max(z0 - pz, 0, pz - (z0 + CHUNK))
+	return math.sqrt(dx * dx + dz * dz) < Config.CaveRadius + 2 * RES
+end
+
+-- piel de la superficie que se calcula voxel a voxel fuera de la zona de cuevas (relieve y montañas); debajo, bloques
+local SURFACE_SKIN = 12
+local SURFACE_J = (Config.Depth - SURFACE_SKIN) / RES + 1
+
 -- Genera la franja de profundidades [fromDepth, toDepth) en todo el mundo (fromDepth = 0 incluye la superficie).
--- Bajo la zona de cuevas, lejos del pozo, todo es roca maciza: se rellena por bloques (mucho más rápido).
+-- Solo la zona de cuevas, el pozo y la piel de la superficie se calculan voxel a voxel; el resto es roca maciza y se
+-- rellena por bloques (mucho más rápido, sobre todo con el mapa grande).
 local function generateBand(fromDepth: number, toDepth: number, stats)
 	local jB = if fromDepth <= 0 then NY else (Config.Depth - fromDepth) / RES
 	local jA = (Config.Depth - toDepth) / RES + 1
-	local solid = fromDepth >= Config.CaveZoneDepth
+	local caveZone = fromDepth < Config.CaveZoneDepth
 	for x0 = -Config.HalfSize, Config.HalfSize - CHUNK, CHUNK do
 		for z0 = -Config.HalfSize, Config.HalfSize - CHUNK, CHUNK do
-			if solid and not chunkNearPit(x0, z0) then
-				fillSolidChunk(x0, z0, fromDepth, toDepth)
-			else
-				generateChunk(x0, z0, jA, jB, stats)
+			if chunkNearPit(x0, z0) or (caveZone and chunkNearCaves(x0, z0)) then
+				generateChunk(x0, z0, jA, jB, stats) -- cuevas o pozo: voxel a voxel
 				task.wait()
+			elseif fromDepth <= 0 then
+				-- superficie lejos de las cuevas: solo la piel del relieve voxel a voxel; debajo, bloques
+				generateChunk(x0, z0, SURFACE_J, jB, stats)
+				fillSolidChunk(x0, z0, SURFACE_SKIN, toDepth)
+				task.wait()
+			else
+				fillSolidChunk(x0, z0, fromDepth, toDepth)
 			end
 		end
-		if solid then task.wait() end
+		task.wait()
 	end
 	generatedDepth = toDepth
 	print(`[World] terreno generado hasta {toDepth} de {Config.Depth}`)
@@ -323,9 +395,6 @@ local function carveEntrances(): { Vector3 }
 	return chambers
 end
 
--- Talla la cueva del foso (encima del pozo), la cueva de la base (spawn) y el pasaje de la gran puerta entre ambas.
--- Abre una salida que sube a la superficie y devuelve el punto donde empieza la salida que baja (la cadena de arenas
--- parte de ahí).
 -- Caverna con piso plano y techo de bóvedas irregulares (forma de la cueva del foso y de la cueva de la base).
 local function carveCavern(c: Vector3, r: number, h: number, domeRadius: number)
 	Terrain:FillCylinder(CFrame.new(c), h, r, Enum.Material.Air) -- cuerpo: piso plano en c.Y - h / 2
@@ -337,28 +406,27 @@ local function carveCavern(c: Vector3, r: number, h: number, domeRadius: number)
 	end
 end
 
--- Pasaje entre la cueva de la base y la del foso: piso plano, paredes rectas y techo abovedado (la gran puerta de
--- arco la pone Hub.luau del lado de la cueva del foso).
-local function carveGatePassage()
-	local hub, spawnCave, gate = Config.Hub, Config.SpawnCave, Config.Gate
-	local dir = Vector3.new(spawnCave.Center.X - hub.Center.X, 0, spawnCave.Center.Z - hub.Center.Z).Unit
-	local from = Vector3.new(hub.Center.X, HUB_FLOOR, hub.Center.Z) + dir * (hub.Radius - 12)
-	local to = Vector3.new(spawnCave.Center.X, HUB_FLOOR, spawnCave.Center.Z) - dir * (spawnCave.Radius - 12)
+-- Pasaje de la cueva del foso a una cueva-base: piso plano, paredes rectas y techo abovedado (los arcos con el nombre
+-- del dueño los pone Bases.luau en las dos bocas).
+local function carvePassage(layout)
+	local dir = Vector3.new(layout.dir.X, 0, layout.dir.Y)
+	local from = layout.hubMouth - dir * 12 -- un poco dentro de cada cueva, para que no quede un escalón
+	local to = layout.baseMouth + dir * 12
 	local mid, length = (from + to) / 2, (to - from).Magnitude
-	local walls = mid + Vector3.yAxis * (gate.Height / 2)
-	Terrain:FillBlock(CFrame.lookAt(walls, walls + dir), Vector3.new(gate.Width, gate.Height, length), Enum.Material.Air)
-	local roof = mid + Vector3.yAxis * gate.Height
-	Terrain:FillCylinder(CFrame.lookAt(roof, roof + dir) * CFrame.Angles(math.pi / 2, 0, 0), length, gate.Width / 2, Enum.Material.Air)
+	local walls = mid + Vector3.yAxis * (BASE.PassageHeight / 2)
+	Terrain:FillBlock(CFrame.lookAt(walls, walls + dir), Vector3.new(BASE.PassageWidth, BASE.PassageHeight, length), Enum.Material.Air)
+	local roof = mid + Vector3.yAxis * BASE.PassageHeight
+	Terrain:FillCylinder(CFrame.lookAt(roof, roof + dir) * CFrame.Angles(math.pi / 2, 0, 0), length, BASE.PassageWidth / 2, Enum.Material.Air)
 end
 
 local function carveHub(): Vector3
 	local hub = Config.Hub
 	local c, r = hub.Center, hub.Radius
 	carveCavern(c, r, hub.Height, hub.DomeRadius) -- cueva del foso
-	local spawnCave = Config.SpawnCave
-	carveCavern(spawnCave.Center, spawnCave.Radius, spawnCave.Height, spawnCave.DomeRadius) -- cueva de la base (spawn)
-	carveGatePassage()
-
+	for _, layout in BaseLayout.All do -- cuevas-base alrededor, cada una con su pasaje
+		carveCavern(layout.center, BASE.CaveRadius, BASE.CaveHeight, BASE.DomeRadius)
+		carvePassage(layout)
+	end
 	-- salida hacia arriba (opcional): rampa desde la pared hasta salir por la superficie
 	if hub.ExitUp then
 		local up = hub.ExitUp.Unit
@@ -455,7 +523,7 @@ end
 local function carveArena(arena: Arena)
 	local spec, rng = Config.Arenas, arena.rng
 	local c, r, h = arena.center, arena.radius, arena.height
-	local rock = materialAt(-c.Y)
+	local rock = materialAt(c.X, c.Z, -c.Y)
 	local up = Vector3.yAxis
 
 	Terrain:FillCylinder(CFrame.new(c), h, r, Enum.Material.Air)
@@ -554,6 +622,210 @@ local function carveReadyArenas(arenas: { Arena }, entrances: { Vector3 }, start
 				end
 				connect(best, arena)
 			end
+		end
+	end
+end
+
+-- Minas abandonadas -----------------------------------------------------------
+-- De la capa 2 hacia abajo no hay cuevas naturales: hay minas talladas en la roca maciza. Cada una guarda su forma
+-- (galerías, salas y pozos, con el suelo en `from`/`to`/`center`); server/Features/Mines les pone la utilería cuando hay
+-- jugadores cerca, con la misma semilla (siempre igual).
+
+export type MineTunnel = { from: Vector3, to: Vector3, width: number, height: number, rails: boolean, collapsed: boolean }
+export type MineRoom = { center: Vector3, size: Vector3, yaw: number, kind: string }
+export type Mine = {
+	id: number,
+	layer: number,
+	camp: boolean,
+	gallery: boolean?, -- tramo de una galería de un hub (sin letrero de sector)
+	center: Vector3, -- suelo de la sala central
+	tunnels: { MineTunnel },
+	rooms: { MineRoom },
+	shaft: { from: Vector3, height: number }?,
+	seed: number,
+	bottomDepth: number,
+	carved: boolean,
+}
+
+local ROOM_KINDS = { "Almacen", "Taller", "Dormitorio", "Almacen", "Taller" }
+local mines: { Mine } = {}
+local minesByLayer: { [number]: { Mine } } = {}
+
+-- Planea todas las minas de una vez (misma semilla = mismas minas).
+local function planMines()
+	local spec = Config.Mines
+	local rng = Random.new(seed + 23)
+	local up = Vector3.yAxis
+	for i = 2, #Config.Layers do
+		minesByLayer[i] = {}
+		local top, bottom = layerTop(i) + spec.Margin, Config.Layers[i].MaxDepth - spec.Margin
+		for n = 1, spec.Complexes + spec.Camps do
+			local camp = n > spec.Complexes
+			local spacing = if camp then spec.Spacing / 2 else spec.Spacing
+			local clearance = if camp then spec.PitClearance / 2 else spec.PitClearance
+			for _ = 1, 25 do
+				local a, d = rng:NextNumber(0, math.pi * 2), clearance + math.sqrt(rng:NextNumber(0, 1)) * (spec.Radius - clearance)
+				local center = Vector3.new(Config.PitCenter.X + math.cos(a) * d, -rng:NextNumber(top, bottom), Config.PitCenter.Y + math.sin(a) * d)
+				local ok = true
+				for _, other in minesByLayer[i] do
+					local need = if other.camp or camp then spacing else spec.Spacing
+					if (other.center - center).Magnitude < need then ok = false break end
+				end
+				if ok then
+					local mine: Mine = {
+						id = #mines + 1, layer = i, camp = camp, center = center, tunnels = {}, rooms = {}, shaft = nil,
+						seed = rng:NextInteger(1, 1e9), bottomDepth = -center.Y + 40, carved = false,
+					}
+					local size = spec.TunnelSize
+					if camp then
+						table.insert(mine.rooms, { center = center, size = Vector3.new(rng:NextNumber(13, 17), 9, rng:NextNumber(13, 17)), yaw = a, kind = "Campamento" })
+						local dir = Vector3.new(math.cos(a + rng:NextNumber(-1, 1)), 0, math.sin(a + rng:NextNumber(-1, 1)))
+						table.insert(mine.tunnels, { from = center, to = center + dir * rng:NextNumber(20, 35), width = spec.BranchSize.X, height = spec.BranchSize.Y, rails = false, collapsed = rng:NextNumber() < 0.5 })
+					else
+						table.insert(mine.rooms, { center = center, size = Vector3.new(rng:NextNumber(22, 30), 13, rng:NextNumber(22, 30)), yaw = rng:NextNumber(0, math.pi), kind = ROOM_KINDS[rng:NextInteger(1, #ROOM_KINDS)] })
+						local count = rng:NextInteger(spec.Tunnels[1], spec.Tunnels[2])
+						local base = rng:NextNumber(0, math.pi * 2)
+						for k = 1, count do
+							local angle = base + (k - 1) * math.pi * 2 / count + rng:NextNumber(-0.3, 0.3)
+							local dir = Vector3.new(math.cos(angle), 0, math.sin(angle))
+							local length = rng:NextNumber(spec.TunnelLength[1], spec.TunnelLength[2])
+							local rise = math.clamp(rng:NextNumber(-0.12, 0.12) * length, -(bottom + spec.Margin / 2 + center.Y), -center.Y - (top - spec.Margin / 2))
+							local to = center + dir * length + up * rise
+							local ending = rng:NextNumber()
+							table.insert(mine.tunnels, { from = center, to = to, width = size.X, height = size.Y, rails = rng:NextNumber() < 0.65, collapsed = ending > 0.75 })
+							if ending < 0.45 then -- sala al final de la galería
+								local kind = ROOM_KINDS[rng:NextInteger(1, #ROOM_KINDS)]
+								table.insert(mine.rooms, { center = to + dir * 6, size = Vector3.new(rng:NextNumber(14, 19), 10, rng:NextNumber(14, 19)), yaw = angle, kind = kind })
+							end
+							if rng:NextNumber() < 0.35 then -- ramal desde la mitad
+								local side = angle + (if rng:NextNumber() < 0.5 then 1 else -1) * rng:NextNumber(0.9, 1.4)
+								local from = center:Lerp(to, rng:NextNumber(0.4, 0.7))
+								local branchTo = from + Vector3.new(math.cos(side), 0, math.sin(side)) * rng:NextNumber(30, 60)
+								table.insert(mine.tunnels, { from = from, to = branchTo, width = spec.BranchSize.X, height = spec.BranchSize.Y, rails = false, collapsed = rng:NextNumber() < 0.3 })
+							end
+						end
+						if rng:NextNumber() < spec.ShaftChance then
+							mine.shaft = { from = center + up * 13, height = rng:NextNumber(spec.ShaftHeight[1], spec.ShaftHeight[2]) }
+						end
+					end
+					table.insert(mines, mine)
+					table.insert(minesByLayer[i], mine)
+					break
+				end
+			end
+		end
+	end
+end
+
+-- Talla una mina en la roca: galerías de techo plano, salas, derrumbes y el pozo.
+local function carveMine(mine: Mine)
+	local rng = Random.new(mine.seed)
+	local up = Vector3.yAxis
+	for _, room in mine.rooms do
+		local frame = CFrame.new(room.center + up * (room.size.Y / 2)) * CFrame.Angles(0, room.yaw, 0)
+		Terrain:FillBlock(frame, room.size, Enum.Material.Air)
+		Terrain:FillBall(room.center + up * room.size.Y, math.min(room.size.X, room.size.Z) * 0.32, Enum.Material.Air) -- techo irregular
+	end
+	for _, t in mine.tunnels do
+		local length = (t.to - t.from).Magnitude
+		local a, b = t.from + up * (t.height / 2), t.to + up * (t.height / 2)
+		Terrain:FillBlock(CFrame.lookAt((a + b) / 2, b), Vector3.new(t.width, t.height, length + t.width * 0.4), Enum.Material.Air)
+		for _ = 1, math.floor(length / 30) do -- paredes menos rectas
+			local p = t.from:Lerp(t.to, rng:NextNumber(0.15, 0.85)) + up * (t.height * 0.6)
+			Terrain:FillBall(p, t.width * rng:NextNumber(0.45, 0.6), Enum.Material.Air)
+		end
+		if t.collapsed then -- derrumbe: roca caída que tapa el final
+			local p = t.to + up * (t.height * 0.35)
+			Terrain:FillBall(p, t.width * 0.75, materialAt(p.X, p.Z, -p.Y))
+		end
+	end
+	if mine.shaft then
+		local s = mine.shaft
+		Terrain:FillBlock(CFrame.new(s.from + up * (s.height / 2)), Vector3.new(7, s.height, 7), Enum.Material.Air)
+	end
+	mine.carved = true
+end
+
+-- Talla las minas que ya caben en la zona generada (de a pocas por frame).
+local function carveReadyMines()
+	local done = 0
+	for _, mine in mines do
+		if not mine.carved and mine.bottomDepth <= generatedDepth then
+			carveMine(mine)
+			done += 1
+			if done % 8 == 0 then task.wait() end
+		end
+	end
+end
+
+-- Hubs de las capas ---------------------------------------------------------------
+-- Una caverna alrededor del pozo en cada capa (shared/HubLayout; la de la capa 1 es la cueva del foso): el pozo queda
+-- abierto en medio (LayerHubs le pone baranda y elevador). Cada hub tiene el túnel corto de su estación de carritos y,
+-- de la capa 2 hacia abajo, galerías hacia las minas de su capa (se amueblan como minas).
+local hubCarved: { [number]: boolean } = {}
+
+-- túnel solo para carritos, en la pared del hub (Carts le pone rieles y una reja que no deja pasar a los jugadores)
+local function carveStationTunnel(hub)
+	local s = hub.station
+	local up = Vector3.yAxis
+	local a, b = s.mouth - s.dir * 4 + up * 4.5, s.tunnelEnd + up * 4.5
+	Terrain:FillBlock(CFrame.lookAt((a + b) / 2, b), Vector3.new(8, 9, (b - a).Magnitude), Enum.Material.Air)
+end
+
+-- Galerías del hub hacia minas de su capa: en cada dirección, el complejo más cercano al que se llega con pendiente
+-- suave; si no hay ninguno, una galería recta que termina en una sala. Se agregan a `mines` por tramos (para que Mines
+-- los amueble solo cerca de los jugadores) y se tallan como minas.
+local function carveGalleries(hub)
+	local spec = ProgressionConfig.Hub
+	local rng = Random.new(seed + 31 + hub.layer)
+	local up = Vector3.yAxis
+	for k = 1, spec.Galleries do
+		local angle = math.pi / 4 + (k - 1) * math.pi * 2 / spec.Galleries + rng:NextNumber(-0.2, 0.2)
+		local dir = Vector3.new(math.cos(angle), 0, math.sin(angle))
+		local start = hub.center + dir * (hub.radius - 6)
+		local best, bestDist = nil, math.huge
+		for _, mine in minesByLayer[hub.layer] or {} do
+			if not mine.camp then
+				local flat = Vector3.new(mine.center.X - start.X, 0, mine.center.Z - start.Z)
+				local dist = flat.Magnitude
+				if dist > 40 and flat.Unit:Dot(dir) > 0.75 and math.abs(mine.center.Y - start.Y) / dist <= spec.MaxSlope and dist < bestDist then
+					best, bestDist = mine, dist
+				end
+			end
+		end
+		local finish = if best then best.center else start + dir * rng:NextNumber(140, 190)
+		local rooms = {}
+		if not best then
+			table.insert(rooms, { center = finish + dir * 6, size = Vector3.new(18, 11, 18), yaw = angle, kind = ROOM_KINDS[rng:NextInteger(1, #ROOM_KINDS)] })
+		end
+		local length = (finish - start).Magnitude
+		local pieces = math.max(math.ceil(length / 100), 1)
+		for n = 1, pieces do
+			local a, b = start:Lerp(finish, (n - 1) / pieces), start:Lerp(finish, n / pieces)
+			local gallery: Mine = {
+				id = #mines + 1, layer = hub.layer, camp = false, gallery = true, center = (a + b) / 2,
+				tunnels = { { from = a, to = b, width = spec.GallerySize.X, height = spec.GallerySize.Y, rails = true, collapsed = false } },
+				rooms = if n == pieces then rooms else {}, shaft = nil,
+				seed = rng:NextInteger(1, 1e9), bottomDepth = 0, carved = false,
+			}
+			carveMine(gallery)
+			table.insert(mines, gallery)
+		end
+		-- boca de la galería: un poco más ancha, sin escalón con el piso del hub
+		local mouth = start + up * (spec.GallerySize.Y / 2)
+		Terrain:FillBlock(CFrame.lookAt(mouth, mouth + dir), Vector3.new(spec.GallerySize.X + 4, spec.GallerySize.Y, 16), Enum.Material.Air)
+	end
+end
+
+-- Talla los hubs de las capas que ya están generadas enteras (las minas de la capa ya están talladas).
+local function carveReadyHubs()
+	for i, hub in HubLayout.All do
+		if not hub.main and not hubCarved[i] and generatedDepth >= Config.Layers[i].MaxDepth then
+			carveCavern(hub.center + Vector3.yAxis * (hub.height / 2), hub.radius, hub.height, hub.domeRadius)
+			carveStationTunnel(hub)
+			carveGalleries(hub)
+			hubCarved[i] = true
+			task.wait()
 		end
 	end
 end
@@ -697,6 +969,13 @@ local function pointNearPit(rng: Random, margin: number): (number, number)
 	return Config.PitCenter.X + math.cos(a) * r, Config.PitCenter.Y + math.sin(a) * r
 end
 
+-- punto (x, z) al azar hasta `radius` del pozo, fuera de su caparazón
+local function pointInRadius(rng: Random, radius: number): (number, number)
+	local inner = Config.PitRadius + Config.PitRagged + Config.PitSeal + 10
+	local a, r = rng:NextNumber(0, math.pi * 2), inner + math.sqrt(rng:NextNumber(0, 1)) * (radius - inner)
+	return Config.PitCenter.X + math.cos(a) * r, Config.PitCenter.Y + math.sin(a) * r
+end
+
 -- punto de aire al azar en las cuevas de la capa `i` (dentro de la zona de cuevas), con su suelo; nil si no se halló
 local function randomCavePoint(rng: Random, i: number, minDepth: number?): RaycastResult?
 	if (minDepth or 0) >= CAVE_LAYER_BOTTOM then return nil end
@@ -733,7 +1012,7 @@ end
 local function placeVein(rng: Random, i: number, minDepth: number?): number
 	local d = depthInLayer(rng, i, minDepth)
 	if not d then return 0 end
-	local x, z = pointNearPit(rng, 12)
+	local x, z = pointInRadius(rng, Config.VeinRadius)
 	local center = Vector3.new(x, -d, z)
 	if not canDig(center, 6) then return 0 end -- nunca dentro de zonas protegidas (el pozo y su caparazón)
 	local count = 0
@@ -743,6 +1022,25 @@ local function placeVein(rng: Random, i: number, minDepth: number?): number
 		count += 1
 	end
 	return count
+end
+
+-- Un grupo en el suelo de una mina ya tallada de la capa `i` (en una sala o en una galería). Devuelve cuántos puso.
+local function placeMineMinerals(rng: Random, i: number): number
+	local list = minesByLayer[i]
+	if not list or #list == 0 then return 0 end
+	local mine = list[rng:NextInteger(1, #list)]
+	if not mine.carved then return 0 end
+	local p
+	if rng:NextNumber() < 0.5 then
+		local room = mine.rooms[rng:NextInteger(1, #mine.rooms)]
+		local spread = math.min(room.size.X, room.size.Z) * 0.3
+		p = room.center + Vector3.new(rng:NextNumber(-spread, spread), 4, rng:NextNumber(-spread, spread))
+	else
+		local t = mine.tunnels[rng:NextInteger(1, #mine.tunnels)]
+		p = t.from:Lerp(t.to, rng:NextNumber(0.2, 0.8)) + Vector3.yAxis * 4
+	end
+	local hit = floorBelow(p, 12)
+	return if hit then placeCluster(rng, hit) else 0
 end
 
 -- Llena el pool hasta `cap` minerales (o `limit` grupos): en la capa 1, grupos sobre el suelo de las cuevas; más
@@ -757,7 +1055,9 @@ local function fillMinerals(rng: Random, limit: number, cap: number, minDepth: n
 			local hit = randomCavePoint(rng, i, minDepth)
 			if hit then placed = placeCluster(rng, hit) end
 		elseif i then
-			placed = placeVein(rng, i, minDepth)
+			-- capas profundas: parte en el suelo de las minas, el resto en vetas dentro de la roca
+			if rng:NextNumber() < Config.Mines.MineralShare then placed = placeMineMinerals(rng, i) end
+			if placed == 0 then placed = placeVein(rng, i, minDepth) end
 		end
 		if placed > 0 then
 			have += placed
@@ -847,6 +1147,8 @@ return {
 	-- para otras features (Excavation, Route)
 	Route = route, -- segmentos de la ruta principal (completa cuando WorldReady = true)
 	CanDig = canDig,
+	Hubs = hubCarved, -- [capa] = true cuando su hub ya está tallado (shared/HubLayout)
+	Mines = mines, -- minas abandonadas (server/Features/Mines les pone la utilería); `carved` = ya talladas
 	Hardness = function(depth: number): number
 		return Config.Layers[layerIndex(depth)].Hardness
 	end,
@@ -857,8 +1159,8 @@ return {
 			warn(`[World] FallenPartsDestroyHeight es {workspace.FallenPartsDestroyHeight}: quien baje de ahí muere. Se ajusta en default.project.json (Workspace) y se aplica al conectar Rojo.`)
 		end
 		Players.CharacterAutoLoads = false
-		for _, biome in Biomes do -- color de la roca de cada bioma (Roblox colorea el terreno por material)
-			Terrain:SetMaterialColor(biome.Material, biome.Color)
+		for material, color in BiomeMap.MaterialColors do -- color de la roca de los biomas (Roblox colorea el terreno por material)
+			Terrain:SetMaterialColor(material, color)
 		end
 		-- la base gris de las plantillas de Roblox tapa la meseta (su cara de arriba está en y = 0): se quita
 		local baseplate = workspace:FindFirstChild("Baseplate")
@@ -868,6 +1170,7 @@ return {
 		local stats = {}
 		for i in Config.Layers do stats[i] = { 0, 0 } end
 		local arenas = planArenas()
+		phase("plan de minas", planMines)
 		local entrances = {}
 		local starter: Vector3? = nil
 		local depth = 0
@@ -881,7 +1184,11 @@ return {
 			end
 		end)
 		phase("entradas", function() entrances = carveEntrances() end)
-		phase("base", function() starter = carveHub() end)
+		phase("base", function()
+				starter = carveHub()
+				carveStationTunnel(HubLayout.Get(1)) -- estación de carritos de la cueva del foso
+				hubCarved[1] = true
+			end)
 		phase("arenas", function() carveReadyArenas(arenas, entrances, starter) end)
 		phase("núcleo", buildCore)
 		phase("bordes", buildBorders)
@@ -930,6 +1237,8 @@ return {
 					generateBand(depth, math.min(depth + Config.BandHeight, Config.Depth), stats)
 				end)
 				depth = math.min(depth + Config.BandHeight, Config.Depth)
+				phase("minas", carveReadyMines)
+				phase("hubs", carveReadyHubs)
 				phase("arenas profundas", function()
 					carveReadyArenas(arenas, entrances, starter)
 					for _, arena in arenas do
@@ -944,7 +1253,7 @@ return {
 			phase("luces profundas", function()
 				spawnLights(rng, Config.LightCount - math.floor(Config.LightCount * readyShare), Config.ReadyDepth)
 			end)
-			print(`[World] mundo completo en {string.format("%.1f", os.clock() - t0)} s: {#arenas} arenas, {#CollectionService:GetTagged("Mineral")} minerales`)
+			print(`[World] mundo completo en {string.format("%.1f", os.clock() - t0)} s: {#arenas} arenas, {#mines} minas, {#CollectionService:GetTagged("Mineral")} minerales`)
 			for i, s in stats do
 				print(`[World] capa {i}: {string.format("%.0f", 100 * s[1] / math.max(s[2], 1))}% de aire`)
 			end

@@ -32,7 +32,7 @@ La única forma de evitar esta pérdida es:
 
 ## Mural de exhibición
 
-Cada jugador tiene un mural tipo corral en su zona de spawn para guardar y exhibir materiales raros.
+Cada jugador tiene un mural tipo corral en su cueva-base para guardar y exhibir materiales raros.
 
 - 5 espacios disponibles
 
@@ -48,6 +48,15 @@ Cada jugador tiene un mural tipo corral en su zona de spawn para guardar y exhib
 
 - Eventos de minerales únicos: además de los eventos de rareza, habrá eventos donde spawnean minerales únicos bien escondidos en el mapa
 
+## Progresión por capas
+
+El terreno (y los túneles que excavan otros) es el mismo para todos, pero cada jugador tiene **sus propias capas desbloqueadas** (`server/Features/Progression`, números en `shared/Config/Progression.luau`), así que nadie se salta la progresión siguiendo el túnel de otro:
+
+- **Permiso de descenso:** en el hub de su capa más profunda compra el permiso para la siguiente. Se paga con el valor de lo guardado en su base (primero lo más barato; de 40 para la capa 2 a 40.000 para la capa 10) y además pide un arma con poder de excavación suficiente para la dureza de esa capa.
+- **Excavar:** nadie excava más abajo del fondo de su última capa desbloqueada.
+- **Presión:** si entra a una capa sin permiso (por un túnel ajeno), aparece un aviso rojo y, tras 3 segundos, daño creciente hasta que suba o muera (reaparece en su base).
+- **Hubs y elevador:** para usar el elevador hacia un hub hay que haberlo descubierto (llegando hasta él) y tener permiso para su capa. La primera vez que se baja a una capa nueva, se baja excavando.
+- Por ahora no se guarda entre sesiones (pendiente: DataStore).
 ## Competitivo
 
 No hay PvP directo por el momento. Los jugadores compiten indirectamente a través de rankings y leaderboards (colecciones, rachas de fracturas, etc.). Se contempla agregar servidores anárquicos (con PvP) más adelante, como modo aparte.
@@ -56,27 +65,39 @@ No hay PvP directo por el momento. Los jugadores compiten indirectamente a trav�
 
 Generado por código (`server/Features/World.luau`, números en `shared/Config/World.luau`); cambia cada día según la semilla.
 
-- **Cueva de la base (spawn):** cada jugador tiene su base, una bahía industrial en el anillo de la cueva, y aparece en ella. Tiene andén de carritos, tolva y cinta que llenan 4 silos (uno por rareza), panel de estadísticas (almacén, valor, envíos, minerales capturados, capa más profunda), mural de exhibición de 5 espacios, grúa y techo. El centro queda como plaza para las tiendas.
-- **Gran puerta de arco:** un pasaje une la cueva de la base con la cueva del foso.
+- **Cuevas-base (spawn de cada jugador):** 8 cuevas propias (radio 140, del tamaño de la antigua cueva de spawn) en anillo alrededor de la cueva del foso, cada una unida a ella por un pasaje con arcos que muestran el nombre del dueño. Cada jugador aparece en la suya. Dentro: andén de carritos con tolva, grúa y cinta; panel de estadísticas a la izquierda de la entrada (almacén, valor, tipos conseguidos, envíos, minerales capturados, capa más profunda); mural de exhibición de 5 espacios; y una nave de almacén con **un silo por cada tipo de mineral** (en filas de 10, pensada para ~100 tipos), cada uno con barra de llenado y placa con nombre y cantidad.
+- **Cueva del foso = zona común (hub de la capa 1):** el spawn general, el portal DESCENSO, las bocas de los 8 pasajes, la estación de carritos, el elevador y el terminal del permiso para la capa 2.
 - **Cueva del foso:** caverna enorme bajo el centro del mapa, con luces y máquinas industriales; es la entrada a la experiencia. Su única salida es el portal "DESCENSO".
-- **El pozo al núcleo:** tubo vertical desde el piso de la cueva del foso hasta el núcleo, tapado por una rejilla con cristal. Se ve el brillo del núcleo pero no se puede bajar por ahí, ni cavar hacia él: no hay atajo a las capas profundas.
-- **Zona de cuevas (capas 1–2):** desde la entrada inicial se bifurcan cuevas naturales y 4 cavernas-arena (salientes, pilares, estalactitas) para perseguir fragmentos con gancho, dash y doble salto.
-- **De la capa 3 hacia abajo, todo se excava:** roca maciza que se abre disparando; cuanto más hondo, más dura (`Hardness` por capa). Cada arma tiene un poder de excavación (`DigPower`): con un arma débil la roca profunda no cede, así que bajar exige mejores armas. Los minerales están incrustados en vetas dentro de la roca.
-- **Ruta y carritos (la extracción):** rieles, cables y letreros ("▲ BASE" / "▲ DESCENSO") desde el portal por los túneles de la zona de cuevas. En las estaciones (cueva del foso, cámara de cruce y cada arena) el jugador envía lo que lleva y un carrito lo lleva por los rieles hasta el andén de su base, donde se suma al almacén. Lo que se lleva encima está en riesgo; lo que llega a la base, a salvo.
+- **El pozo al núcleo = eje del mundo:** tubo vertical desde la cueva del foso (tapada por una rejilla con cristal) hasta el núcleo, que se ve brillar desde todos los hubs. No se puede excavar hacia él desde la roca: se entra por los hubs.
+- **Un hub por capa:** caverna alrededor del pozo (en la capa 1 es la cueva del foso; en las demás, a 180 studs bajo el techo de la capa), con el pozo abierto en medio tras una baranda de vidrio, letrero con la capa, **elevador** (cabina junto al pozo: lleva a los hubs descubiertos de capas desbloqueadas), **terminal del permiso de descenso** a la capa siguiente, **estación de carritos** y, de la capa 2 hacia abajo, 4 galerías entibadas con rieles hacia las minas de su capa. Un hub se descubre al entrar en él.
+- **Zona de cuevas (capa 1):** cuevas naturales anchas e interconectadas hasta 560 studs alrededor del pozo, con 7 cavernas-arena grandes (salientes, pilares, estalactitas) para perseguir fragmentos con gancho, dash y doble salto. Es la única capa con cuevas naturales.
+- **De la capa 2 hacia abajo, todo se excava:** roca maciza que se abre disparando; cuanto más hondo, más dura (`Hardness` por capa). Cada arma tiene un poder de excavación (`DigPower`): con un arma débil la roca profunda no cede, así que bajar exige mejores armas. Los minerales están incrustados en vetas dentro de la roca.
+- **Minas abandonadas (capa 2 en adelante):** no hay cuevas naturales, pero sí minas talladas en la roca, muy seguidas (34 complejos y 40 campamentos por capa). Complejo: sala central con letrero "SECTOR capa-número", 3–5 galerías entibadas con faroles (pocos encendidos), rieles y carritos abandonados (algunos volcados), ramales, salas al final (almacén, taller con perforadora y generador, dormitorio con literas), derrumbes y a veces un pozo con escalera. Campamento: sala pequeña con tienda, fogata apagada, saco de dormir y mochila. La mitad de los minerales de las capas profundas aparece en el suelo de las minas; el resto, en vetas dentro de la roca. La utilería se arma solo cerca de los jugadores (`server/Features/Mines`).
+- **Ruta (orientación):** rieles, cables y letreros ("▲ BASE" / "▲ DESCENSO") desde el portal por los túneles de la zona de cuevas.
+- **Carritos (la extracción):** en la estación de cada hub el jugador envía lo que lleva. El carrito es solo visual: entra lleno por un túnel corto solo para carritos (una reja no deja pasar a los jugadores) y, apenas se pierde de vista, lo que lleva se suma al almacén de su base y el carrito desaparece; enseguida sale uno vacío para el siguiente envío. Lo que se lleva encima está en riesgo; lo que llega a la base, a salvo.
 - **Cámara del núcleo:** al fondo; se llega excavando a través de todas las capas.
 - **Superficie:** meseta con montañas hacia los bordes; por ahora no se puede llegar (la salida está desactivada).
 
-### Capas (20, de 240 studs; 4.800 de profundidad)
+### Capas y biomas (10 capas de 800 studs; 8.000 de profundidad; mapa de 2.048 × 2.048; 4 biomas por capa)
 
-| Bioma | Capas |
-|---|---|
-| **Corteza en ruinas** (roca gris y ceniza) | 1 Sótanos colapsados · 2 Galerías de escombro · 3 Vetas de ceniza · 4 Fosas de chatarra |
-| **Salares de cristal** (sal blanca rosada, brillo frío) | 5 Llanuras de sal · 6 Geodas rosadas · 7 Bosque de prismas · 8 Cámara de ecos |
-| **Criogrietas** (hielo azul) | 9 Grietas de escarcha · 10 Glaciar enterrado · 11 Lagos congelados · 12 Corazón de hielo |
-| **Basalto ferroso** (roca oscura oxidada) | 13 Coladas de basalto · 14 Minas de hierro · 15 Forja olvidada · 16 Columnas negras |
-| **Manto incandescente** (roca agrietada sobre lava) | 17 Brasas dormidas · 18 Ríos de magma · 19 Cámara de presión · 20 Umbral del núcleo |
+Cada capa se reparte en 4 cuadrantes alrededor del pozo, con bordes ondulados, y el reparto gira de una capa a otra: bajando en línea recta se cruzan biomas distintos. Los biomas están siempre en el mismo sitio (no dependen de la semilla del día). La zona común de arriba (cuevas del foso y de las bases) es de roca neutra. Catálogo en `shared/Config/Biomes.luau`; reparto en `shared/BiomeMap.luau`.
 
-Cada bioma tiene su roca, su color y su luz ambiental; al entrar en una capa aparece su nombre en pantalla. Por capa crecen la dureza (×1.15 por capa: de 1 a ~14) y la rareza de los minerales, y baja su cantidad.
+Orden por dificultad: arriba, biomas que ayudan (impulsos, flotación, puntos de recolección); en medio, combos y reacciones en cadena; luego presión de tiempo y entornos hostiles; al fondo, reglas rotas y biomas letales. Cada capa mezcla temas distintos.
+
+| Capa | Nombre | Biomas |
+|---|---|---|
+| 1 | Umbral vivo (zona de cuevas) | Cueva Fúngica Bioluminiscente · Gruta de Esporas Flotantes · Catarata Subterránea · Bolsillo de Microgravedad |
+| 2 | Corrientes ascendentes | Chimenea Geotérmica · Cueva de Géiseres · Caverna de Raíces Vivas · Cueva de Vórtices |
+| 3 | Ecos y cadenas | Cueva Armónica · Caverna de Eco Fractal · Cueva de Líquenes Eléctricos · Caverna Magnética |
+| 4 | Redes quebradizas | Cueva de Cuarzo Resonante · Caverna Glacial · Gruta de Estalactitas Quebradizas · Caverna de Andamiaje Colapsado |
+| 5 | Riesgo y reflejo | Gruta de Prismas · Caverna de Obsidiana · Jardín de Cristal Orgánico · Lago Subterráneo Congelado |
+| 6 | Contrarreloj | Catedral de Sal Cristalina · Cueva de Escarcha Viva · Caverna de Permafrost · Túnel de Minado Automatizado |
+| 7 | Elementos hostiles | Túneles de Magma Vivo · Caverna Inundada · Falla de Gravedad Pulsante · Cueva de Ceniza Ardiente |
+| 8 | Suelo traicionero | Río de Lava Lenta · Caverna de Gravedad Invertida · Gruta de Niebla Ácida · Lago de Mercurio Líquido |
+| 9 | Leyes rotas | Núcleo Reactor Abandonado · Cueva de Anomalía Temporal · Vacío de Antimateria Contenida · Pantano de Esporas Letales |
+| 10 | Zona letal (endgame) | Caldera del Colapso Térmico · Fosa del Cero Absoluto · Cueva de Disonancia Cognitiva · Abismo de Rareza Inestable |
+
+Hoy cada bioma tiene su roca (material y color), su luz ambiental y su tinte, y al entrar aparece su nombre en pantalla ("CAPA 3 · Caverna Magnética"). La mecánica propia de cada uno está descrita en `Effect` (Config/Biomes) y **falta implementarla**. Por capa crecen la dureza (×1.34 por capa: de 1 a ~14) y la rareza de los minerales, y baja su cantidad.
 ## Dirección artística
 
 Estética base sci-fi/industrial, con posibilidad de integrar distintos biomas más adelante.
@@ -85,7 +106,8 @@ Estética base sci-fi/industrial, con posibilidad de integrar distintos biomas m
 
 - ☐ Barra de "estabilidad del núcleo" que se degrada con el tiempo, para generar tensión creciente durante el run
 
-- ☑ Biomas: 5 biomas de 4 capas; visuales (roca, color, luz); la jugabilidad cambia por la dureza de cada capa
+- ☑ Biomas: 10 capas con 4 biomas cada una (40), ordenados por dificultad; visuales (roca, color, luz, tinte) y aviso en pantalla
+- ☐ Mecánicas propias de cada bioma (gravedad alterada, calor, frío, esporas, agua, etc.; descritas en `Config/Biomes`)
 
 - ☐ Guardar el almacén y las estadísticas de la base entre sesiones (DataStore)
 

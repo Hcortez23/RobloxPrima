@@ -1,23 +1,18 @@
--- Carritos de mina: llevan los minerales del jugador desde las estaciones de la ruta hasta el andén de su base.
---  · Estaciones: en la cueva del foso (junto al portal DESCENSO), en la cámara de cruce y en cada arena (paradas de
---    World.Route). Ahí el jugador "Envía minerales a su base": se le vacía el inventario y sale un carrito con ellos.
---  · Vía: los rieles de la ruta (Route.Paths) hacia arriba hasta la cueva del foso; de ahí una vía nueva rodea la
---    rejilla del pozo, cruza la puerta de arco y el pasaje, da vuelta por el anillo de la cueva de la base y entra al
---    andén de cada base.
---  · Al llegar, lo que trae se suma al almacén de la base (Bases.Deposit) y cuenta como un envío.
--- Los carritos se mueven en el servidor (piezas ancladas, PivotTo por frame) para que todos los vean igual.
+-- Estaciones de carritos: una en el hub de cada capa (shared/HubLayout; el túnel lo talla World). El carrito es solo
+-- visual, para ahorrar: el jugador "Envía minerales a su base", se le vacía el inventario y el carrito entra lleno por
+-- el túnel (solo para carritos: una reja invisible no deja pasar a los jugadores). Apenas se pierde de vista, lo que
+-- lleva se suma al almacén de su base (Bases.Deposit, cuenta como un envío) y el carrito desaparece; enseguida sale
+-- uno vacío del túnel para el siguiente envío. Los carritos se mueven en el servidor (piezas ancladas, PivotTo).
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 
 local Config = require(ReplicatedStorage.Shared.Config.Carts)
-local WorldConfig = require(ReplicatedStorage.Shared.Config.World)
 local Minerals = require(ReplicatedStorage.Shared.Config.Minerals)
+local HubLayout = require(ReplicatedStorage.Shared.HubLayout)
 local World = require(script.Parent.World)
-local Route = require(script.Parent.Route)
 local Bases = require(script.Parent.Bases)
-
-local RARITIES = { "Comun", "Raro", "Epico", "Legendario" }
 
 local DARK = Color3.fromRGB(48, 50, 56)
 local RUST = Color3.fromRGB(110, 62, 40)
@@ -25,13 +20,6 @@ local RAIL = Color3.fromRGB(96, 92, 90)
 local WOOD = Color3.fromRGB(70, 52, 40)
 local HAZARD = Color3.fromRGB(230, 180, 40)
 local LAMP = Color3.fromRGB(255, 214, 160)
-
-local HUB = WorldConfig.Hub
-local HUB_FLOOR = HUB.Center.Y - HUB.Height / 2
-local HUB_XZ = Vector2.new(HUB.Center.X, HUB.Center.Z)
-local SPAWN = WorldConfig.SpawnCave
-local SPAWN_XZ = Vector2.new(SPAWN.Center.X, SPAWN.Center.Z)
-local GATE_DIR = (SPAWN_XZ - HUB_XZ).Unit -- de la cueva del foso hacia la cueva de la base
 
 local folder: Folder
 local terrainOnly = RaycastParams.new()
@@ -53,65 +41,10 @@ local function deco(parent: Instance, name: string, size: Vector3, cframe: CFram
 	return p
 end
 
--- suelo bajo (x, z) en las cuevas de arriba (el piso de las dos cuevas está a la misma altura)
-local function floorAt(x: number, z: number): Vector3
-	local hit = workspace:Raycast(Vector3.new(x, HUB_FLOOR + 8, z), Vector3.new(0, -30, 0), terrainOnly)
-	return if hit then hit.Position else Vector3.new(x, HUB_FLOOR, z)
-end
-
-local function xz(v: Vector3): Vector2
-	return Vector2.new(v.X, v.Z)
-end
-
--- puntos del suelo de `a` a `b` cada SampleStep (sin incluir `a`)
-local function line(a: Vector2, b: Vector2, out: { Vector3 })
-	local n = math.max(math.ceil((b - a).Magnitude / Config.SampleStep), 1)
-	for k = 1, n do
-		local p = a:Lerp(b, k / n)
-		table.insert(out, floorAt(p.X, p.Y))
-	end
-end
-
--- puntos en línea recta de `a` a `b` conservando su altura (sin incluir `a`): dentro del andén, sobre el piso de la base
-local function straight(a: Vector3, b: Vector3, out: { Vector3 })
-	local n = math.max(math.ceil((b - a).Magnitude / Config.SampleStep), 1)
-	for k = 1, n do
-		table.insert(out, a:Lerp(b, k / n))
-	end
-end
-
--- arco por el anillo de la cueva de la base, de un ángulo a otro por el lado más corto (sin incluir el inicial)
-local function arc(fromAngle: number, toAngle: number, out: { Vector3 })
-	local delta = (toAngle - fromAngle + math.pi) % (math.pi * 2) - math.pi
-	local n = math.max(math.ceil(math.abs(delta) * Config.RingRadius / Config.SampleStep), 1)
-	for k = 1, n do
-		local a = fromAngle + delta * k / n
-		local p = SPAWN_XZ + Vector2.new(math.cos(a), math.sin(a)) * Config.RingRadius
-		table.insert(out, floorAt(p.X, p.Y))
-	end
-end
-
-local function angleOf(p: Vector2): number
-	local d = p - SPAWN_XZ
-	return math.atan2(d.Y, d.X)
-end
-
--- Rieles y durmientes entre puntos consecutivos.
-local function drawRails(points: { Vector3 }, closed: boolean?)
-	local count = #points
-	for k = 1, if closed then count else count - 1 do
-		local a, b = points[k], points[k % count + 1]
-		local dir = b - a
-		if dir.Magnitude > 0.05 then
-			local side = dir:Cross(Vector3.yAxis)
-			side = if side.Magnitude > 0.01 then side.Unit else Vector3.xAxis
-			for _, s in { -1, 1 } do
-				local ra, rb = a + side * (s * 1.6) + Vector3.yAxis * 0.45, b + side * (s * 1.6) + Vector3.yAxis * 0.45
-				deco(folder, "Rail", Vector3.new(0.3, 0.3, (rb - ra).Magnitude + 0.1), CFrame.lookAt((ra + rb) / 2, rb), RAIL, Enum.Material.Metal)
-			end
-			deco(folder, "Sleeper", Vector3.new(4.6, 0.3, 0.8), CFrame.lookAt(a + Vector3.yAxis * 0.15, a + Vector3.yAxis * 0.15 + Vector3.new(dir.X, 0, dir.Z)), WOOD, Enum.Material.WoodPlanks)
-		end
-	end
+-- suelo bajo `p` (rayo corto contra el terreno)
+local function floorAt(p: Vector3): Vector3
+	local hit = workspace:Raycast(p + Vector3.yAxis * 4, Vector3.yAxis * -14, terrainOnly)
+	return if hit then hit.Position else p
 end
 
 -- Carrito: caja de metal oxidado con ruedas, borde del color de la base y farol; `ore` = colores del mineral que lleva.
@@ -131,7 +64,7 @@ local function makeCart(color: Color3, ore: { Color3 }): Model
 	end
 	local lamp = deco(model, "Lamp", Vector3.one * 0.6, origin * CFrame.new(0, 2.1, -2.45), LAMP, Enum.Material.Neon, Enum.PartType.Ball)
 	local glow = Instance.new("PointLight")
-	glow.Color, glow.Range, glow.Brightness, glow.Shadows = LAMP, 14, 0.9, false
+	glow.Color, glow.Range, glow.Brightness, glow.Shadows = LAMP, 12, 0.8, false
 	glow.Parent = lamp
 	for k, c in ore do -- trozos de mineral asomando
 		local x, z = ((k - 1) % 2 - 0.5) * 1.2, (math.floor((k - 1) / 2) - 1) * 1.2
@@ -142,69 +75,104 @@ local function makeCart(color: Color3, ore: { Color3 }): Model
 	return model
 end
 
--- Mueve el carrito por los puntos a velocidad constante y llama a onArrive al final.
-local function run(cart: Model, points: { Vector3 }, onArrive: () -> ())
-	local cumulative = { 0 }
-	for k = 2, #points do
-		cumulative[k] = cumulative[k - 1] + (points[k] - points[k - 1]).Magnitude
-	end
-	local total, distance, k = cumulative[#points], 0, 1
+-- Mueve el carrito en línea recta de `a` a `b` a velocidad constante. onPass(distancia recorrida) se llama en cada
+-- frame; si devuelve true, se detiene ahí. onArrive, al llegar.
+local function roll(cart: Model, a: Vector3, b: Vector3, onPass: ((number) -> boolean)?, onArrive: (() -> ())?)
+	local total = math.max((b - a).Magnitude, 0.01)
+	local facing = CFrame.lookAt(Vector3.zero, b - a).Rotation
+	local distance = 0
+	cart:PivotTo(CFrame.new(a) * facing)
 	local connection
 	connection = RunService.Heartbeat:Connect(function(dt)
 		if not cart.Parent then
 			connection:Disconnect()
 			return
 		end
-		distance += dt * Config.Speed
-		if distance >= total then
+		distance = math.min(distance + dt * Config.Speed, total)
+		cart:PivotTo(CFrame.new(a:Lerp(b, distance / total)) * facing)
+		if onPass and onPass(distance) then
 			connection:Disconnect()
-			onArrive()
 			return
 		end
-		while cumulative[k + 1] < distance do k += 1 end
-		local a, b = points[k], points[k + 1]
-		local span = cumulative[k + 1] - cumulative[k]
-		local pos = if span > 0.001 then a:Lerp(b, (distance - cumulative[k]) / span) else a
-		local dir = b - a
-		if dir.Magnitude > 0.01 then
-			cart:PivotTo(CFrame.lookAt(pos, pos + dir))
+		if distance >= total then
+			connection:Disconnect()
+			if onArrive then onArrive() end
 		end
 	end)
 end
 
--- Estación de carga junto a la vía: andén, techo con letrero y terminal con el aviso para enviar.
-local function buildStation(index: number, at: Vector3, along: Vector3): ProximityPrompt
-	local flat = Vector3.new(along.X, 0, along.Z)
-	flat = if flat.Magnitude > 0.01 then flat.Unit else Vector3.zAxis
-	local side = flat:Cross(Vector3.yAxis).Unit
-	local center = at + side * 5.5
-	local frame = CFrame.lookAt(center, center + flat)
+-- Estación de un hub: vía de la parada al fondo del túnel, reja en la boca, andén con techo y terminal con el aviso.
+local function buildStation(hub)
+	local s = hub.station
+	local up = Vector3.yAxis
+	local dir = s.dir
+	local side = dir:Cross(up).Unit
 	local model = Instance.new("Model")
-	model.Name = `Station{index}`
+	model.Name = `Station{hub.layer}`
 	model.Parent = folder
-	part(model, "Platform", Vector3.new(6, 0.6, 10), frame * CFrame.new(0, 0.3, 0), DARK, Enum.Material.DiamondPlate)
-	deco(model, "PlatformEdge", Vector3.new(0.4, 0.1, 10), frame * CFrame.new(-3, 0.65, 0), HAZARD, Enum.Material.SmoothPlastic)
+
+	local stop = floorAt(s.stop)
+	local finish = Vector3.new(s.tunnelEnd.X, stop.Y, s.tunnelEnd.Z) - dir * 3
+	local stopFrame = CFrame.lookAt(stop, stop + dir)
+	-- vía: rieles y durmientes de la parada al fondo del túnel
+	local railFrom, railTo = stop - dir * 5, finish
+	for _, x in { -1.6, 1.6 } do
+		local ra, rb = railFrom + side * x + up * 0.45, railTo + side * x + up * 0.45
+		deco(model, "Rail", Vector3.new(0.3, 0.3, (rb - ra).Magnitude), CFrame.lookAt((ra + rb) / 2, rb), RAIL, Enum.Material.Metal)
+	end
+	for d = 0, (railTo - railFrom).Magnitude, 4 do
+		local p = railFrom + dir * d + up * 0.15
+		deco(model, "Sleeper", Vector3.new(4.6, 0.3, 0.8), CFrame.lookAt(p, p + dir), WOOD, Enum.Material.WoodPlanks)
+	end
+	deco(model, "BufferStop", Vector3.new(4.4, 1.6, 0.8), stopFrame * CFrame.new(0, 0.8, 4.2), RUST, Enum.Material.CorrodedMetal)
+
+	-- reja de la boca: marco, persiana que sube cuando pasa un carrito y pared invisible que no deja pasar a nadie
+	local mouth = Vector3.new(s.mouth.X, stop.Y, s.mouth.Z)
+	local mouthFrame = CFrame.lookAt(mouth, mouth + dir)
+	for _, x in { -4.6, 4.6 } do
+		part(model, "GatePost", Vector3.new(1.2, 9.5, 1.2), mouthFrame * CFrame.new(x, 4.75, 0), DARK, Enum.Material.Metal)
+		for band = 1, 3 do
+			deco(model, "GateStripe", Vector3.new(1.3, 0.9, 1.3), mouthFrame * CFrame.new(x, band * 2.4, 0), HAZARD, Enum.Material.SmoothPlastic)
+		end
+	end
+	part(model, "GateHeader", Vector3.new(10.4, 1.4, 1.4), mouthFrame * CFrame.new(0, 10, 0), RUST, Enum.Material.CorrodedMetal)
+	local shutter = Instance.new("Model")
+	shutter.Name = "GateShutter"
+	local closed = mouthFrame * CFrame.new(0, 4.4, 0.4)
+	local shutterBase = deco(shutter, "ShutterFrame", Vector3.new(8, 8.6, 0.2), closed, DARK, Enum.Material.Glass)
+	shutterBase.Transparency = 0.9
+	for x = -3.5, 3.5, 1 do
+		deco(shutter, "ShutterBar", Vector3.new(0.25, 8.6, 0.25), closed * CFrame.new(x, 0, 0), RUST, Enum.Material.CorrodedMetal)
+	end
+	shutter.PrimaryPart = shutterBase
+	shutter.Parent = model
+	local blocker = part(model, "GateBlocker", Vector3.new(9, 12, 1), mouthFrame * CFrame.new(0, 6, -1.5), DARK, Enum.Material.SmoothPlastic)
+	blocker.Transparency, blocker.CanQuery = 1, false -- los carritos no chocan (son decoración); los jugadores sí
+	local signPart = part(model, "GateSign", Vector3.new(10, 2, 0.4), mouthFrame * CFrame.new(0, 12, 0.3), DARK, Enum.Material.Metal)
+	local gui = Instance.new("SurfaceGui")
+	gui.Face, gui.LightInfluence, gui.PixelsPerStud = Enum.NormalId.Back, 0, 40
+	local label = Instance.new("TextLabel")
+	label.Size, label.BackgroundTransparency = UDim2.fromScale(1, 1), 1
+	label.Font, label.TextScaled, label.TextColor3 = Enum.Font.GothamBlack, true, HAZARD
+	label.Text = "ENVÍOS A LA BASE"
+	label.Parent = gui
+	gui.Parent = signPart
+
+	local openValue = Instance.new("NumberValue") -- 0 = cerrada, 1 = abierta
+	openValue.Changed:Connect(function(v) shutter:PivotTo(closed * CFrame.new(0, v * 8.5, 0)) end)
+	local function gate(open: boolean)
+		TweenService:Create(openValue, TweenInfo.new(0.7, Enum.EasingStyle.Quad), { Value = if open then 1 else 0 }):Play()
+	end
+
+	-- andén a un lado de la parada, con techo y terminal
+	local platform = stopFrame * CFrame.new(5.5, 0, 0)
+	part(model, "Platform", Vector3.new(6, 0.6, 10), platform * CFrame.new(0, 0.3, 0), DARK, Enum.Material.DiamondPlate)
+	deco(model, "PlatformEdge", Vector3.new(0.4, 0.1, 10), platform * CFrame.new(-3, 0.65, 0), HAZARD, Enum.Material.SmoothPlastic)
 	for _, z in { -4.4, 4.4 } do
-		part(model, "Post", Vector3.new(0.6, 7, 0.6), frame * CFrame.new(2.4, 3.6, z), RUST, Enum.Material.CorrodedMetal)
+		part(model, "Post", Vector3.new(0.6, 7, 0.6), platform * CFrame.new(2.4, 3.6, z), RUST, Enum.Material.CorrodedMetal)
 	end
-	part(model, "Roof", Vector3.new(6.6, 0.4, 10.4), frame * CFrame.new(0.3, 7.2, 0), RUST, Enum.Material.CorrodedMetal)
-	local sign = part(model, "Sign", Vector3.new(0.3, 1.6, 8), frame * CFrame.new(-2.9, 6.2, 0), DARK, Enum.Material.Metal)
-	for _, face in { Enum.NormalId.Left, Enum.NormalId.Right } do
-		local gui = Instance.new("SurfaceGui")
-		gui.Face = face
-		gui.LightInfluence = 0
-		gui.PixelsPerStud = 40
-		local label = Instance.new("TextLabel")
-		label.Size = UDim2.fromScale(1, 1)
-		label.BackgroundTransparency = 1
-		label.Font = Enum.Font.GothamBlack
-		label.TextScaled = true
-		label.TextColor3 = HAZARD
-		label.Text = if index == 0 then "ESTACIÓN · FOSO" else `ESTACIÓN {index}`
-		label.Parent = gui
-		gui.Parent = sign
-	end
-	local terminal = part(model, "Terminal", Vector3.new(1.4, 3, 2), frame * CFrame.new(1, 2.1, 0), DARK, Enum.Material.Metal)
+	part(model, "Roof", Vector3.new(6.6, 0.4, 10.4), platform * CFrame.new(0.3, 7.2, 0), RUST, Enum.Material.CorrodedMetal)
+	local terminal = part(model, "Terminal", Vector3.new(1.4, 3, 2), platform * CFrame.new(1, 2.1, 0), DARK, Enum.Material.Metal)
 	local screen = deco(model, "Screen", Vector3.new(0.1, 1.2, 1.6), terminal.CFrame * CFrame.new(-0.75, 0.5, 0), Color3.fromRGB(90, 255, 140), Enum.Material.Neon)
 	local glow = Instance.new("PointLight")
 	glow.Color, glow.Range, glow.Brightness, glow.Shadows = screen.Color, 10, 0.7, false
@@ -215,129 +183,80 @@ local function buildStation(index: number, at: Vector3, along: Vector3): Proximi
 	prompt.HoldDuration = 0.5
 	prompt.MaxActivationDistance = 12
 	prompt.RequiresLineOfSight = false
+	prompt.Enabled = false
 	prompt.Parent = terminal
-	return prompt
-end
 
-local function build()
-	folder = Instance.new("Folder")
-	folder.Name = "Carts"
-	folder.Parent = workspace
-
-	-- línea principal bajo tierra: los rieles de la ruta en orden; las paradas son el final de cada tramo con stop
-	local main, stops = {}, {}
-	for k, points in Route.Paths do
-		for _, p in points do
-			if #main == 0 or (main[#main] - p).Magnitude > 0.5 then table.insert(main, p) end
-		end
-		local seg = World.Route[k]
-		if seg and seg.stop and #main > 0 then table.insert(stops, #main) end
-	end
-	if #main == 0 then
-		warn("[Carts] la ruta no tiene rieles; no hay carritos")
-		return
-	end
-
-	-- vía de superficie: boca del portal → rodea la rejilla → puerta de arco → pasaje → anillo de la cueva de la base
-	local start = main[1]
-	local hubPath = { start }
-	local exit = Vector2.new(HUB.ExitDown.X, HUB.ExitDown.Z).Unit
-	local wp = Config.HubWaypoint
-	local waypointA = HUB_XZ + exit * 80
-	local waypointB = HUB_XZ + Vector2.new(math.cos(math.rad(wp.Angle)), math.sin(math.rad(wp.Angle))) * wp.Distance
-	local gateMouth = HUB_XZ + GATE_DIR * (HUB.Radius - 2)
-	local spawnWall = SPAWN_XZ - GATE_DIR * (SPAWN.Radius - 2)
-	local ringEntry = SPAWN_XZ - GATE_DIR * Config.RingRadius
-	line(xz(start), waypointA, hubPath)
-	line(waypointA, waypointB, hubPath)
-	line(waypointB, gateMouth, hubPath)
-	line(gateMouth, spawnWall, hubPath)
-	line(spawnWall, ringEntry, hubPath)
-	drawRails(hubPath)
-
-	local ring = {}
-	local ringStart = angleOf(ringEntry)
-	for k = 0, math.ceil(math.pi * 2 * Config.RingRadius / 4) - 1 do
-		local a = ringStart + k * 4 / Config.RingRadius
-		local p = SPAWN_XZ + Vector2.new(math.cos(a), math.sin(a)) * Config.RingRadius
-		table.insert(ring, floorAt(p.X, p.Y))
-	end
-	drawRails(ring, true)
-
-	-- de la boca del portal hasta el andén de cada base
-	local toBase = {}
-	for _, base in Bases.All() do
-		local path = table.clone(hubPath)
-		local laneAngle = angleOf(xz(base.laneEntry))
-		arc(ringStart, laneAngle, path)
-		local branch = { path[#path] }
-		line(xz(path[#path]), xz(base.laneEntry), branch)
-		drawRails(branch)
-		for k = 2, #branch do table.insert(path, branch[k]) end
-		straight(base.laneEntry, base.dock, path) -- dentro del andén, sobre su piso (los rieles ya los tiene la base)
-		toBase[base.index] = path
-	end
-
-	-- estaciones: la del foso (al inicio de la vía) y una en cada parada de la ruta
-	local cooldown: { [Player]: number } = {}
-	local function addStation(stationIndex: number, mainIndex: number)
-		local at = main[mainIndex]
-		local nextPoint = main[math.min(mainIndex + 1, #main)]
-		local prevPoint = main[math.max(mainIndex - 1, 1)]
-		local along = if nextPoint ~= at then nextPoint - at else at - prevPoint
-		if mainIndex == 1 then along = Vector3.new(waypointA.X, 0, waypointA.Y) - Vector3.new(at.X, 0, at.Z) end
-		local prompt = buildStation(stationIndex, at, along)
-		prompt.Triggered:Connect(function(player)
-			local base = Bases.Get(player)
-			if not base or not toBase[base.index] then return end
-			if os.clock() - (cooldown[player] or 0) < Config.SendCooldown then return end
-			local counts, total = Bases.TakeInventory(player)
-			if total == 0 then return end
-			cooldown[player] = os.clock()
-
-			-- recorrido: de la estación hacia arriba por la ruta y luego la vía de superficie hasta su andén
-			local path = {}
-			for k = mainIndex, 1, -1 do table.insert(path, main[k]) end
-			for k = 2, #toBase[base.index] do table.insert(path, toBase[base.index][k]) end
-
-			local ore = {}
-			for _, rarity in RARITIES do
-				if counts[rarity] then
-					for _ = 1, math.min(counts[rarity], 2) do table.insert(ore, Minerals[rarity].Color) end
-				end
-			end
-			while #ore > 6 do table.remove(ore, 1) end
-			local cart = makeCart(base.color, ore)
-			cart:PivotTo(CFrame.lookAt(path[1], path[math.min(2, #path)] + Vector3.new(0, 0.001, 0)))
-			cart.Parent = folder
-			run(cart, path, function()
-				-- llegó al andén: descarga en el almacén de la base (si el dueño sigue en el juego)
-				if player.Parent == Players and Bases.Get(player) == base then
-					Bases.Deposit(player, counts, true)
-				end
-				for _, piece in cart:GetChildren() do
-					if piece.Name == "Ore" then piece:Destroy() end
-				end
-				task.delay(2, function() cart:Destroy() end)
-			end)
+	-- el carrito vacío que sale del túnel y espera en la parada
+	local waiting: Model? = nil
+	local function bringEmptyCart()
+		local cart = makeCart(HAZARD, {})
+		cart.Parent = model
+		gate(true)
+		roll(cart, finish, stop, nil, function()
+			cart:PivotTo(CFrame.lookAt(stop, stop + dir)) -- de frente al túnel, listo para salir
+			gate(false)
+			waiting = cart
+			prompt.ObjectText = "Carrito"
+			prompt.Enabled = true
 		end)
 	end
-	addStation(0, 1)
-	for n, mainIndex in stops do
-		addStation(n, mainIndex)
-	end
-	Players.PlayerRemoving:Connect(function(p) cooldown[p] = nil end)
+	bringEmptyCart()
+
+	prompt.Triggered:Connect(function(player)
+		local base = Bases.Get(player)
+		if not waiting or not base then return end
+		local counts, total = Bases.TakeInventory(player)
+		if total == 0 then return end
+		prompt.Enabled = false
+		prompt.ObjectText = "Carrito en camino"
+		-- el carrito vacío se cambia por uno cargado (con el color de la base y lo más valioso que lleva)
+		waiting:Destroy()
+		waiting = nil
+		local keys = {}
+		for key in counts do table.insert(keys, key) end
+		table.sort(keys, function(a, b) return (Minerals[a].Value or 0) > (Minerals[b].Value or 0) end)
+		local ore = {}
+		for _, key in keys do
+			for _ = 1, math.min(counts[key], 2) do table.insert(ore, Minerals[key].Color) end
+		end
+		while #ore > 6 do table.remove(ore) end
+		local cart = makeCart(base.color, ore)
+		cart.Parent = model
+		gate(true)
+		local deliverAt = (mouth - stop).Magnitude + Config.DepositDistance
+		roll(cart, stop, finish, function(distance)
+			if distance < deliverAt then return false end
+			-- ya no se ve: se entrega en la base y el carrito desaparece
+			if player.Parent == Players and Bases.Get(player) == base then
+				Bases.Deposit(player, counts, true)
+			end
+			cart:Destroy()
+			gate(false)
+			task.delay(Config.RespawnDelay, bringEmptyCart)
+			return true
+		end)
+	end)
 end
 
 return {
 	Start = function()
-		-- espera a que estén la ruta (con sus rieles) y las bases
-		while workspace:GetAttribute("RouteReady") ~= true or workspace:GetAttribute("BasesReady") ~= true do
+		folder = Instance.new("Folder")
+		folder.Name = "Carts"
+		folder.Parent = workspace
+		while workspace:GetAttribute("BasesReady") ~= true do
 			task.wait(0.25)
 		end
-		local ok, err = pcall(build)
-		if not ok then
-			warn(`[Carts] no se pudo construir el sistema de carritos: {err}`)
+		-- cada estación se arma en cuanto World talla su hub
+		local built, count = {}, 0
+		while count < #HubLayout.All do
+			for i, hub in HubLayout.All do
+				if not built[i] and World.Hubs[i] then
+					built[i], count = true, count + 1
+					local ok, err = pcall(buildStation, hub)
+					if not ok then warn(`[Carts] no se pudo armar la estación de la capa {i}: {err}`) end
+				end
+			end
+			task.wait(1)
 		end
 	end,
 }

@@ -1,10 +1,14 @@
 -- Utilería de las cuevas de arriba, estilo apocalíptico-industrial. Se construye cuando World termina de tallarlas
 -- (atributo WorldReady). Cueva del foso: rejilla con cristal sobre el pozo al núcleo (se ve el brillo, no se puede bajar),
--- torres de reflectores, generadores con humo y neón, tuberías por las paredes y lámparas colgando del techo; la gran
--- puerta de arco hacia la cueva de la base. Cueva de la base: plataforma de spawn y luces (ahí irán bases y tiendas). Todo con Parts; para cambiar el arte, reemplazar estas funciones por modelos de assets/models.
+-- torres de reflectores, generadores con humo y neón, tuberías por las paredes, lámparas colgando del techo, el portal
+-- DESCENSO y la plataforma del spawn general. Los arcos de los pasajes a las cuevas-base los pone Bases.luau; el
+-- elevador y el permiso de descenso, LayerHubs.luau; la estación de carritos, Carts.luau.
+-- Todo con Parts; para cambiar el arte, reemplazar estas funciones por modelos de assets/models.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config.World)
+local BaseLayout = require(ReplicatedStorage.Shared.BaseLayout)
+local ProgressionConfig = require(ReplicatedStorage.Shared.Config.Progression)
 
 local HUB = Config.Hub
 local FLOOR = HUB.Center.Y - HUB.Height / 2
@@ -19,7 +23,7 @@ local NEON_CYAN = Color3.fromRGB(80, 200, 255)
 local LAMP = Color3.fromRGB(255, 214, 160)
 
 local folder: Folder
-local toSpawnCave, gate, spawnCave, descentPortal -- se definen más abajo (las usan wallPipes y build)
+local descentPortal -- se define más abajo (la usa build)
 
 local function part(name: string, size: Vector3, cframe: CFrame, color: Color3, material: Enum.Material, shape: Enum.PartType?): Part
 	local p = Instance.new("Part")
@@ -130,7 +134,8 @@ end
 local function wallPipes()
 	local radius = HUB.Radius - 4
 	local height = 18
-	local exits = { HUB.ExitDown.Unit, toSpawnCave() }
+	local exits = {}
+	for _, o in BaseLayout.Openings() do table.insert(exits, Vector3.new(o.X, 0, o.Y)) end -- portal y pasajes a las bases
 	if HUB.ExitUp then table.insert(exits, HUB.ExitUp.Unit) end -- la salida a la superficie es opcional
 	local segments = 36
 	for i = 0, segments - 1 do
@@ -169,77 +174,6 @@ local function hangingLamp(floor: Vector3, angle: number, distance: number, heig
 	bulb.CanCollide = false
 	light(bulb, "PointLight", { Color = LAMP, Range = 40, Brightness = 2, Shadows = true })
 	lamp.CanCollide = false
-end
-
--- Dirección (en XZ) desde la cueva del foso hacia la cueva de la base.
-function toSpawnCave(): Vector3
-	local s = Config.SpawnCave.Center
-	return Vector3.new(s.X - HUB.Center.X, 0, s.Z - HUB.Center.Z).Unit
-end
-
--- Gran puerta de arco entre la cueva de la base y la del foso, del lado de la cueva del foso: pilares con franjas de
--- advertencia, arco de metal con luces de neón por dentro, clave iluminada, portones abiertos contra las paredes del
--- pasaje y letreros a cada lado.
-function gate()
-	local spec = Config.Gate
-	local dir = toSpawnCave()
-	local side = dir:Cross(Vector3.yAxis).Unit
-	local up = Vector3.yAxis
-	local base = CENTER + dir * (HUB.Radius - 6) -- en la boca del pasaje, a ras del piso
-	local half = spec.Width / 2 + 2.5
-
-	for _, s in { -1, 1 } do -- pilares
-		local pillarPos = base + side * (s * half) + up * (spec.Height / 2)
-		part("GatePillar", Vector3.new(5, spec.Height, 7), CFrame.lookAt(pillarPos, pillarPos + dir), DARK, Enum.Material.Metal)
-		for band = 1, 3 do
-			local bandPos = base + side * (s * half) + up * (band * 4)
-			local stripe = part("GateStripe", Vector3.new(5.2, 1.2, 7.2), CFrame.lookAt(bandPos, bandPos + dir), if band % 2 == 0 then DARK else HAZARD, Enum.Material.SmoothPlastic)
-			stripe.CanCollide = false
-		end
-		-- portón abierto, apoyado contra la pared del pasaje
-		local doorPos = base + side * (s * (spec.Width / 2 - 1)) + dir * (spec.Width / 4 + 3) + up * (spec.Height / 2)
-		part("GateDoor", Vector3.new(1.2, spec.Height - 2, spec.Width / 2), CFrame.lookAt(doorPos, doorPos + dir), RUST, Enum.Material.DiamondPlate)
-	end
-
-	-- arco: segmentos sobre media circunferencia, con una franja de neón por dentro
-	local center = base + up * spec.Height
-	local segments = 14
-	for i = 0, segments - 1 do
-		local t = (i + 0.5) / segments * math.pi
-		local radial = side * math.cos(t) + up * math.sin(t)
-		local tangent = -side * math.sin(t) + up * math.cos(t)
-		local length = half * math.pi / segments + 0.6
-		part("GateArch", Vector3.new(length, 5, 7), CFrame.fromMatrix(center + radial * half, tangent, radial), DARK, Enum.Material.Metal)
-		local glow = part("GateArchLight", Vector3.new(length, 0.6, 1.6), CFrame.fromMatrix(center + radial * (half - 2.8), tangent, radial), NEON_ORANGE, Enum.Material.Neon)
-		glow.CanCollide = false
-		if i % 3 == 1 then
-			light(glow, "PointLight", { Color = NEON_ORANGE, Range = 20, Brightness = 1.2, Shadows = false })
-		end
-	end
-	local keystone = part("GateKeystone", Vector3.new(6, 6, 8), CFrame.lookAt(center + up * (half + 1), center + up * (half + 1) + dir), RUST, Enum.Material.CorrodedMetal)
-	local lamp = part("GateKeystoneLight", Vector3.new(3, 3, 8.4), keystone.CFrame, NEON_CYAN, Enum.Material.Neon)
-	lamp.CanCollide = false
-	light(lamp, "PointLight", { Color = NEON_CYAN, Range = 30, Brightness = 2, Shadows = false })
-
-	-- letreros sobre el arco: hacia la cueva de la base y hacia la del foso
-	local signPos = center + up * (half + 7)
-	local sign = part("GateSign", Vector3.new(spec.Width, 4, 1), CFrame.lookAt(signPos, signPos + dir), DARK, Enum.Material.Metal)
-	for _, face in { { Enum.NormalId.Front, "ACCESO AL NÚCLEO" }, { Enum.NormalId.Back, "BASE" } } do
-		local gui = Instance.new("SurfaceGui")
-		gui.Face = face[1]
-		gui.LightInfluence = 0
-		gui.Brightness = 2
-		gui.PixelsPerStud = 40
-		local label = Instance.new("TextLabel")
-		label.Size = UDim2.fromScale(1, 1)
-		label.BackgroundTransparency = 1
-		label.Font = Enum.Font.GothamBlack
-		label.TextScaled = true
-		label.TextColor3 = HAZARD
-		label.Text = face[2]
-		label.Parent = gui
-		gui.Parent = sign
-	end
 end
 
 -- Portal de la entrada inicial (la única salida de la cueva del foso hacia abajo): marco con franjas de advertencia,
@@ -293,14 +227,17 @@ function descentPortal()
 	gui.Parent = sign
 end
 
--- Cueva de la base (spawn): por ahora iluminación; el piso queda libre para las bases y las tiendas.
-function spawnCave()
-	local spec = Config.SpawnCave
-	local floor = Vector3.new(spec.Center.X, spec.Center.Y - spec.Height / 2, spec.Center.Z)
-	for i = 0, 5 do
-		hangingLamp(floor, math.rad(i * 60), spec.Radius * 0.55, 30)
+-- Ángulos (desde +X hacia +Z) en el medio de cada hueco ancho entre aberturas de la pared de la cueva del foso.
+local function gapAngles(): { number }
+	local angles = {}
+	for _, o in BaseLayout.Openings() do table.insert(angles, math.atan2(o.Y, o.X) % (math.pi * 2)) end
+	table.sort(angles)
+	local result = {}
+	for k, a in angles do
+		local nextA = angles[k % #angles + 1] + (if k == #angles then math.pi * 2 else 0)
+		if nextA - a >= math.rad(40) then table.insert(result, (a + nextA) / 2) end
 	end
-	hangingLamp(floor, 0, 0, 34)
+	return result
 end
 
 local function build()
@@ -310,21 +247,27 @@ local function build()
 
 	grate()
 	spawnPad()
-	-- las salidas y el spawn quedan libres: torres y generadores entre ellos
-	-- ángulos desde +X hacia +Z: 90° salida de abajo (portal DESCENSO), 225° pasaje a la cueva de la base
-	for _, a in { 10, 50, 130, 170, 280, 330 } do
-		floodlight(math.rad(a), HUB.Radius * 0.72)
+	-- torres y generadores en los huecos entre las aberturas (portal y pasajes a las bases), nunca delante de una;
+	-- frente al spawn general no va torre para no taparlo
+	local spawnAngle = math.atan2(Config.SpawnPosition.Z - CENTER.Z, Config.SpawnPosition.X - CENTER.X)
+	local function near(a: number, b: number): boolean
+		return math.abs((a - b + math.pi) % (math.pi * 2) - math.pi) < math.rad(15)
 	end
-	for i, a in { 30, 150, 265, 305 } do
-		generator(math.rad(a), HUB.Radius - 16, if i % 2 == 0 then NEON_CYAN else NEON_ORANGE)
+	for k, a in gapAngles() do
+		local nearSpawn = near(a, spawnAngle)
+		local station = near(a, ProgressionConfig.StationAngle) -- ahí va la estación de carritos (Carts)
+		if not nearSpawn and not station then
+			floodlight(a, HUB.Radius * 0.72)
+		end
+		if (k % 2 == 1 or nearSpawn) and not station then
+			generator(a, HUB.Radius - 16, if k % 4 == 1 then NEON_CYAN else NEON_ORANGE)
+		end
 	end
 	wallPipes()
 	for i = 0, 7 do
 		hangingLamp(CENTER, math.rad(i * 45 + 22.5), if i % 2 == 0 then HUB.Radius * 0.45 else HUB.Radius * 0.75, 34)
 	end
-	gate()
 	descentPortal()
-	spawnCave()
 end
 
 return {
