@@ -6,6 +6,12 @@ return {
 	WorkspaceTargets = {},
 	-- Copiar los efectos de un modelo (From) a otro (To), un nombre por nivel. To está en Workspace;
 	-- From se busca en ReplicatedStorage.Assets, luego en ReplicatedStorage y al final en Workspace.
+	-- Paquetes de auras de ejemplo que se sacan del mapa al iniciar la partida (se mueven a ReplicatedStorage, no se
+	-- borran): no se ven en el escenario pero sus auras siguen usándose (server/Features/AuraTransfer).
+	HideFromMap = {
+		"Aura Pack Premium By Sanzzzzz",
+		"VFX Auras",
+	},
 	-- Rareza -> modelo cuyos efectos reciben todos los minerales de esa rareza (misma búsqueda que From).
 	RarityEffects = {
 		Raro = { "Aura Pack Premium By Sanzzzzz", "Aura Kurama" },

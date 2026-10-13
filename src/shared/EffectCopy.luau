@@ -79,23 +79,35 @@ end
 -- (el último de la ruta) en ReplicatedStorage.Assets (assets/models, como queda al guardarlo con Save to File)
 -- y en ReplicatedStorage (si se arrastró ahí en Studio); luego por la ruta completa y al final en Workspace.
 function EffectCopy.findSource(path: { string }): Instance?
-	local assets = ReplicatedStorage:FindFirstChild("Assets")
-	local saved = (assets and assets:FindFirstChild(path[#path])) or ReplicatedStorage:FindFirstChild(path[#path])
-	if saved then
-		return saved
-	end
-	for _, root in { assets, ReplicatedStorage } do
-		local current: Instance? = root
-		for _, name in path do
-			current = current and current:FindFirstChild(name)
+	local function lookup(): Instance?
+		local assets = ReplicatedStorage:FindFirstChild("Assets")
+		local saved = (assets and assets:FindFirstChild(path[#path])) or ReplicatedStorage:FindFirstChild(path[#path])
+		if saved then
+			return saved
 		end
-		if current then
-			return current
+		for _, root in { assets, ReplicatedStorage, workspace } do
+			local current: Instance? = root
+			for _, name in path do
+				current = current and current:FindFirstChild(name)
+			end
+			if current then
+				return current
+			end
 		end
+		return nil
 	end
-	return EffectCopy.findInWorkspace(path)
+	-- Se revisan todos los lugares varias veces: el servidor puede estar sacando el paquete del mapa
+	-- (AuraTransfer, HideFromMap) o el cliente aún no lo ha recibido.
+	local deadline = os.clock() + 10
+	repeat
+		local found = lookup()
+		if found then
+			return found
+		end
+		task.wait(0.25)
+	until os.clock() > deadline
+	return nil
 end
-
 local warnedSources: { [Instance]: boolean } = {}
 
 -- Copia los efectos de `source` a `target`. Las piezas del destino no coinciden con las del origen, así que
